@@ -1,0 +1,12 @@
+.env
+node_modules/
+go.sum
+.agent/
+backend/bin/
+frontend/dist/
+frontend/node_modules/
+frontend/.vite/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+*.log
