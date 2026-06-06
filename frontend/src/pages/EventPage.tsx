@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import { LoadingState } from '../components/LoadingState';
@@ -20,6 +20,16 @@ function formatOdd(n: number): string {
   return n.toFixed(2);
 }
 
+const CATEGORIES = [
+  { id: 'all', label: 'Tudo' },
+  { id: 'main', label: 'Principais' },
+  { id: 'goals', label: 'Gols' },
+  { id: 'overunder', label: 'Mais/Menos' },
+  { id: 'handicap', label: 'Handicap' },
+  { id: 'corners', label: 'Escanteios' },
+  { id: 'cards', label: 'Cartões' },
+];
+
 export function EventPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const id = Number(eventId);
@@ -27,6 +37,7 @@ export function EventPage() {
   const [markets, setMarkets] = useState<OddsMarket[] | null>(null);
   const [match, setMatch] = useState<Match | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
     if (status !== 'open' || !Number.isFinite(id) || id <= 0) return;
@@ -61,6 +72,67 @@ export function EventPage() {
     send({ type: 'GET_EVENT_ODDS', event_id: id });
     return unsub;
   }, [status, id, send, subscribe]);
+
+  const filteredMarkets = useMemo(() => {
+    if (!markets) return [];
+    
+    const normalize = (s: string) => 
+      s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
+
+    if (activeCategory === 'all') return markets;
+
+    return markets.filter((m) => {
+      const marketName = normalize(m.name);
+      const selectionsText = m.selections.map(s => normalize(s.name)).join(' ');
+      const combined = `${marketName} ${selectionsText}`;
+      
+      switch (activeCategory) {
+        case 'main':
+          // Principais: Resultado Final, Chance Dupla, Ambas Marcam, Vencedor, 1x2
+          return marketName.includes('resultado') || marketName.includes('vencedor') || 
+                 marketName.includes('chance') || marketName.includes('ambas') || 
+                 marketName.includes('1x2') || marketName.includes('partida') || 
+                 marketName.includes('empate') || marketName.includes('vence') || 
+                 marketName.includes('draw') || marketName.includes('winner');
+        
+        case 'goals':
+          // Gols: Total de Gols, Placar Exato, Marcar Gols
+          return marketName.includes('gol') || marketName.includes('placar') || 
+                 marketName.includes('marcar') || marketName.includes('score') ||
+                 selectionsText.includes('gol');
+        
+        case 'overunder':
+          // Mais/Menos: Over, Under, Acima, Abaixo, Mais, Menos
+          return marketName.includes('mais') || marketName.includes('menos') || 
+                 marketName.includes('total') || marketName.includes('over') || 
+                 marketName.includes('under') || marketName.includes('acima') || 
+                 marketName.includes('abaixo') || selectionsText.includes('mais') || 
+                 selectionsText.includes('menos') || selectionsText.includes('acima') || 
+                 selectionsText.includes('abaixo');
+        
+        case 'handicap':
+          // Handicap: Asiático, Europeu, Spread
+          return marketName.includes('handicap') || marketName.includes('asiatico') || 
+                 marketName.includes('spread') || marketName.includes('vantagem');
+        
+        case 'corners':
+          // Escanteios: Cantos, Corners, Tiros de Canto
+          return marketName.includes('escanteio') || marketName.includes('canto') || 
+                 marketName.includes('corner') || selectionsText.includes('escanteio') || 
+                 selectionsText.includes('canto') || selectionsText.includes('corner');
+        
+        case 'cards':
+          // Cartões: Amarelo, Vermelho, Advertência
+          return marketName.includes('cartao') || marketName.includes('vermelho') || 
+                 marketName.includes('amarelo') || marketName.includes('advertencia') || 
+                 marketName.includes('card') || selectionsText.includes('cartao') || 
+                 selectionsText.includes('card');
+        
+        default:
+          return false;
+      }
+    });
+  }, [markets, activeCategory]);
 
   const refresh = () => {
     setError(null);
@@ -105,6 +177,20 @@ export function EventPage() {
         <LoadingState label="Carregando jogo..." />
       )}
 
+      <div className="event__tabs-container">
+        <div className="event__tabs">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              className={`event__tab ${activeCategory === cat.id ? 'event__tab--active' : ''}`}
+              onClick={() => setActiveCategory(cat.id)}
+            >
+              {cat.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="event__content">
         {error && <ErrorState message={error} onRetry={refresh} />}
         {!error && markets === null && <LoadingState label="Carregando odds..." />}
@@ -116,9 +202,16 @@ export function EventPage() {
         )}
         {!error && markets && markets.length > 0 && (
           <div className="event__markets">
-            {markets.map((m) => (
-              <OddsMarketView key={m.id} market={m} />
-            ))}
+            {filteredMarkets.length > 0 ? (
+              filteredMarkets.map((m) => (
+                <OddsMarketView key={m.id} market={m} />
+              ))
+            ) : (
+              <EmptyState 
+                title="Nenhum mercado nesta categoria" 
+                description="Tente selecionar outra aba."
+              />
+            )}
           </div>
         )}
       </div>

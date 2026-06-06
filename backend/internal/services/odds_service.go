@@ -68,5 +68,6 @@ func (s *OddsService) fetch(ctx context.Context, url string) (json.RawMessage, e
 	if err != nil {
 		return nil, err
 	}
+
 	return body, nil
 }

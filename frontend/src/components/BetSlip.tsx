@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useBetSlip } from '../context/BetSlipContext';
 
 type Props = {
+  show?: boolean;
   onClose?: () => void;
 };
 
@@ -15,9 +16,16 @@ function formatOdd(n: number): string {
   return n.toFixed(2);
 }
 
-export function BetSlip({ onClose }: Props) {
+export function BetSlip({ show, onClose }: Props) {
   const { items, stake, totalOdd, potentialReturn, remove, clear, setStake, confirm } = useBetSlip();
   const [feedback, setFeedback] = useState<string | null>(null);
+
+  // No mobile, se não houver itens e não estiver forçado a mostrar, esconde
+  const isVisible = show || (items.length > 0);
+
+  if (!isVisible && typeof window !== 'undefined' && window.innerWidth < 1024) {
+    return null;
+  }
 
   const handleConfirm = () => {
     const msg = confirm();
@@ -25,7 +33,7 @@ export function BetSlip({ onClose }: Props) {
   };
 
   return (
-    <aside className="bet-slip" aria-label="Bilhete de aposta simulada">
+    <aside className={`bet-slip ${isVisible ? 'bet-slip--visible' : ''}`} aria-label="Bilhete de aposta simulada">
       <header className="bet-slip__head">
         <h2 className="bet-slip__title">Bilhete</h2>
         {onClose && (
@@ -60,7 +68,7 @@ export function BetSlip({ onClose }: Props) {
                   <button
                     type="button"
                     className="bet-slip__item-remove"
-                    onClick={() => remove(it.selection.id)}
+                    onClick={() => remove(it.selection)}
                     aria-label="Remover seleção"
                   >
                     ×

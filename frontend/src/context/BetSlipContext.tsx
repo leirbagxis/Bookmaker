@@ -14,7 +14,7 @@ type BetSlipContextValue = {
   totalOdd: number;
   potentialReturn: number;
   add: (selection: OddSelection) => void;
-  remove: (id: string) => void;
+  remove: (selection: OddSelection) => void;
   clear: () => void;
   setStake: (n: number) => void;
   confirm: () => string;
@@ -45,7 +45,8 @@ function saveItems(items: BetSlipItem[]) {
 }
 
 function uniqueKey(s: OddSelection): string {
-  return `${s.eventId}::${s.id}::${s.marketId}`;
+  // Simplificado para garantir estabilidade: evento + id da seleção
+  return `${s.eventId}-${s.id}`;
 }
 
 export function BetSlipProvider({ children }: { children: ReactNode }) {
@@ -64,8 +65,9 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const remove = useCallback((id: string) => {
-    setItems((prev) => prev.filter((it) => it.selection.id !== id));
+  const remove = useCallback((selection: OddSelection) => {
+    const key = uniqueKey(selection);
+    setItems((prev) => prev.filter((it) => uniqueKey(it.selection) !== key));
   }, []);
 
   const clear = useCallback(() => {

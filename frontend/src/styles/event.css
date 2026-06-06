@@ -9,6 +9,7 @@
   text-decoration: none;
   font-size: 14px;
   align-self: flex-start;
+  padding: var(--space-1) 0;
 }
 
 .event__back:hover {
@@ -90,6 +91,44 @@
   color: var(--color-primary-soft);
 }
 
+.event__tabs-container {
+  margin: 0 calc(var(--space-4) * -1);
+  padding: 0 var(--space-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+  position: sticky;
+  top: var(--header-h);
+  z-index: 20;
+}
+
+.event__tabs-container::-webkit-scrollbar {
+  display: none;
+}
+
+.event__tabs {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.event__tab {
+  padding: var(--space-4) var(--space-2);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.event__tab--active {
+  color: var(--color-primary-soft);
+  border-bottom-color: var(--color-primary-soft);
+}
+
 .event__content {
   display: flex;
   flex-direction: column;
@@ -103,19 +142,32 @@
 }
 
 .odds-market {
-  background: var(--color-surface);
+  background: var(--color-bg-elev);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: var(--space-4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .odds-market__title {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: var(--space-3);
-  color: var(--color-text-muted);
+  letter-spacing: 0.8px;
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.odds-market__title::before {
+  content: '';
+  display: block;
+  width: 3px;
+  height: 14px;
+  background: var(--color-primary-soft);
+  border-radius: 99px;
 }
 
 .odds-market__grid {
@@ -126,31 +178,35 @@
 
 .odd-button {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 4px;
-  padding: var(--space-3);
-  background: var(--color-bg-elev);
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--color-text);
-  text-align: center;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
-  min-height: 56px;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 44px;
+  width: 100%;
 }
 
 .odd-button:hover {
   border-color: var(--color-primary-soft);
+  background: var(--color-surface-2);
 }
 
 .odd-button:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
 }
 
 .odd-button--selected {
   background: var(--color-primary);
   border-color: var(--color-primary-soft);
   color: #fff;
+  box-shadow: 0 0 12px rgba(30, 192, 112, 0.3);
 }
 
 .odd-button--selected .odd-button__price {
@@ -158,19 +214,56 @@
 }
 
 .odd-button__name {
-  font-size: 12px;
+  font-size: 10px;
+  font-weight: 600;
   color: inherit;
   opacity: 0.85;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  line-height: 1.1;
+  flex: 1;
 }
 
 .odd-button__price {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
   color: var(--color-primary-soft);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.odd-button--locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--color-bg-elev);
+  border-color: transparent;
+}
+
+.odd-button__locked-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  flex: 1;
+}
+
+.odds-market--overunder .odds-market__grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.odds-market--overunder .odd-button {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+@media (max-width: 480px) {
+  .odds-market--overunder .odd-button {
+    padding: var(--space-2) var(--space-2);
+  }
 }
 
 @media (min-width: 768px) {

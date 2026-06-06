@@ -1,6 +1,10 @@
 package models
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+	"time"
+)
 
 type RawOdd struct {
 	Price     float64 `json:"price"`
@@ -10,25 +14,47 @@ type RawOdd struct {
 	EventID   int64   `json:"event_id"`
 }
 
+type rawMatchDate struct {
+	Seconds int64 `json:"seconds"`
+	Nanos   int   `json:"nanos"`
+}
+
+type rawTeamObj struct {
+	Name      string `json:"name"`
+	ShortName string `json:"short_name"`
+	FullName  string `json:"full_name"`
+}
+
+type rawCountryCode struct {
+	Value string `json:"value"`
+}
+
 type RawMatch struct {
-	EventID     int64           `json:"event_id"`
-	Home        json.RawMessage `json:"home"`
-	HomeTeam    json.RawMessage `json:"home_team"`
-	Away        json.RawMessage `json:"away"`
-	AwayTeam    json.RawMessage `json:"away_team"`
-	Competition json.RawMessage `json:"competition"`
-	Tournament  json.RawMessage `json:"tournament"`
-	StartTime   string          `json:"start_time"`
-	StartsAt    string          `json:"starts_at"`
-	Kickoff     string          `json:"kickoff"`
-	Status      string          `json:"status"`
-	State       string          `json:"state"`
-	Score       json.RawMessage `json:"score"`
-	Odds        []RawOdd        `json:"odds"`
+	ID       string       `json:"id"`
+	Team1    *rawTeamObj  `json:"team1"`
+	Team2    *rawTeamObj  `json:"team2"`
+	Date     *rawMatchDate `json:"date"`
+	Status   int          `json:"status"`
+	State    int          `json:"state"`
+	Odds     []RawOdd     `json:"odds"`
+	Country  string       `json:"-"`
+	Category string       `json:"-"`
+}
+
+type RawCompetitionEnvelope struct {
+	Competition struct {
+		Name        string         `json:"name"`
+		CountryCode rawCountryCode `json:"country_code"`
+	} `json:"competition"`
+	Category struct {
+		Name        string         `json:"name"`
+		CountryCode rawCountryCode `json:"country_code"`
+	} `json:"category"`
+	Matches []RawMatch `json:"matches"`
 }
 
 type RawMatchesResponse struct {
-	Matches []RawMatch `json:"matches"`
+	Competitions []RawCompetitionEnvelope `json:"competitions"`
 }
 
 type Match struct {
@@ -41,6 +67,24 @@ type Match struct {
 	HomeOdd     float64 `json:"homeOdd"`
 	DrawOdd     float64 `json:"drawOdd"`
 	AwayOdd     float64 `json:"awayOdd"`
+	Country     string  `json:"country,omitempty"`
+	Category    string  `json:"category,omitempty"`
+}
+
+func extractTeamFromObj(obj *rawTeamObj) string {
+	if obj == nil {
+		return ""
+	}
+	if obj.Name != "" {
+		return obj.Name
+	}
+	if obj.ShortName != "" {
+		return obj.ShortName
+	}
+	if obj.FullName != "" {
+		return obj.FullName
+	}
+	return ""
 }
 
 func extractTeamName(raw json.RawMessage) string {
@@ -74,61 +118,24 @@ func extractTeamName(raw json.RawMessage) string {
 	return ""
 }
 
-func extractCompetitionName(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err == nil {
-		return s
-	}
-	var t struct {
-		Name        string `json:"name"`
-		Title       string `json:"title"`
-		DisplayName string `json:"display_name"`
-		Tournament  string `json:"tournament"`
-	}
-	if err := json.Unmarshal(raw, &t); err == nil {
-		if t.Name != "" {
-			return t.Name
-		}
-		if t.Title != "" {
-			return t.Title
-		}
-		if t.DisplayName != "" {
-			return t.DisplayName
-		}
-		if t.Tournament != "" {
-			return t.Tournament
-		}
-	}
-	return ""
-}
-
-func NormalizeMatch(r RawMatch) (Match, bool) {
-	if r.EventID == 0 {
-		return Match{}, false
-	}
-
-	home := extractTeamName(r.Home)
-	if home == "" {
-		home = extractTeamName(r.HomeTeam)
-	}
-	away := extractTeamName(r.Away)
-	if away == "" {
-		away = extractTeamName(r.AwayTeam)
-	}
-	if home == "" || away == "" {
-		return Match{}, false
-	}
-
+func NormalizeMatch(r RawMatch, competitionName, country, category string) (Match, bool) {
 	if len(r.Odds) == 0 {
+		return Match{}, false
+	}
+
+	home := extractTeamFromObj(r.Team1)
+	away := extractTeamFromObj(r.Team2)
+	if home == "" || away == "" {
 		return Match{}, false
 	}
 
 	var homeOdd, drawOdd, awayOdd float64
 	hasHome, hasDraw, hasAway := false, false, false
+	var eventID int64
 	for _, o := range r.Odds {
+		if eventID == 0 && o.EventID != 0 {
+			eventID = o.EventID
+		}
 		switch o.Name {
 		case "1":
 			homeOdd = o.Price
@@ -144,34 +151,38 @@ func NormalizeMatch(r RawMatch) (Match, bool) {
 	if !hasHome || !hasDraw || !hasAway {
 		return Match{}, false
 	}
-
-	comp := extractCompetitionName(r.Competition)
-	if comp == "" {
-		comp = extractCompetitionName(r.Tournament)
+	if eventID == 0 {
+		return Match{}, false
 	}
 
-	start := r.StartTime
-	if start == "" {
-		start = r.StartsAt
-	}
-	if start == "" {
-		start = r.Kickoff
+	var startTime string
+	if r.Date != nil && r.Date.Seconds > 0 {
+		startTime = time.Unix(r.Date.Seconds, 0).UTC().Format(time.RFC3339)
 	}
 
-	status := r.Status
-	if status == "" {
-		status = r.State
+	var status string
+	switch r.State {
+	case 1:
+		status = "LIVE"
+	case 2:
+		status = "FT"
+	default:
+		status = ""
 	}
+
+	comp := strings.TrimSpace(competitionName)
 
 	return Match{
-		EventID:     r.EventID,
+		EventID:     eventID,
 		HomeTeam:    home,
 		AwayTeam:    away,
 		Competition: comp,
-		StartTime:   start,
+		StartTime:   startTime,
 		Status:      status,
 		HomeOdd:     homeOdd,
 		DrawOdd:     drawOdd,
 		AwayOdd:     awayOdd,
+		Country:     strings.ToUpper(strings.TrimSpace(country)),
+		Category:    strings.TrimSpace(category),
 	}, true
 }

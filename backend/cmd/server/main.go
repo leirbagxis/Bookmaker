@@ -12,6 +12,7 @@ import (
 
 	"superbet/backend/internal/cache"
 	"superbet/backend/internal/config"
+	"superbet/backend/internal/db"
 	"superbet/backend/internal/httpclient"
 	"superbet/backend/internal/models"
 	"superbet/backend/internal/services"
@@ -24,11 +25,21 @@ func main() {
 
 	httpc := httpclient.New(10 * time.Second)
 
-	matchesCache := cache.New[string, []services.CompetitionGroup](cfg.CacheTTL)
+	database, err := db.New("superbet.db")
+	if err != nil {
+		log.Fatalf("erro ao inicializar banco de dados: %v", err)
+	}
+	defer database.Close()
+
 	oddsCache := cache.New[int64, []models.OddsMarket](cfg.CacheTTL)
 
-	matchSvc := services.NewMatchService(cfg, httpc, matchesCache)
+	matchSvc := services.NewMatchService(cfg, httpc, database)
 	oddsSvc := services.NewOddsService(cfg, httpc, oddsCache)
+
+	// Inicia rotina de buscar partidas a cada 30s
+	ctxPolling, cancelPolling := context.WithCancel(context.Background())
+	defer cancelPolling()
+	matchSvc.StartPolling(ctxPolling)
 
 	hub := websocket.NewHub()
 	server := &websocket.Server{

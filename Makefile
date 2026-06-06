@@ -24,7 +24,7 @@ build-backend: ## Faz build do binário Go em backend/bin/superbet
 	mkdir -p $(BACKEND_DIR)/bin
 	cd $(BACKEND_DIR) && go build -o bin/superbet ./cmd/server
 
-build: build-frontend build-backend ## Faz build do frontend e do backend
+build: build-frontend build-backend run ## Faz build do frontend e do backend, depois roda o servidor
 
 run: build-backend ## Roda apenas o binário Go (requer frontend/dist)
 	@test -d $(STATIC_DIR) || { echo "ERRO: $(STATIC_DIR) nao existe. Rode 'make build-frontend' antes."; exit 1; }

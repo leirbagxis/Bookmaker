@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { WebSocketProvider } from './context/WebSocketContext';
 import { BetSlipProvider } from './context/BetSlipContext';
@@ -20,6 +21,8 @@ function PlaceholderPage({ title }: { title: string }) {
 }
 
 function App() {
+  const [showBetSlip, setShowBetSlip] = useState(false);
+
   return (
     <WebSocketProvider>
       <BetSlipProvider>
@@ -36,11 +39,14 @@ function App() {
                 <Route path="*" element={<EmptyState title="Página não encontrada" />} />
               </Routes>
             </main>
-            <BetSlip />
+            
+            <BetSlip show={showBetSlip} onClose={() => setShowBetSlip(false)} />
+            
             <footer className="app__footer">
               Projeto demonstrativo. Apostas simuladas. Não envolve dinheiro real.
             </footer>
-            <BottomNavigation />
+            
+            <BottomNavigation onOpenBetSlip={() => setShowBetSlip(true)} />
           </div>
         </BrowserRouter>
       </BetSlipProvider>
