@@ -1,8 +1,11 @@
 package config
 
 import (
+	"bufio"
+	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -19,6 +22,8 @@ type Config struct {
 }
 
 func Load() *Config {
+	loadDotEnv(".env")
+
 	port := getenv("PORT", "8080")
 
 	ttl := parseInt(getenv("CACHE_TTL_SECONDS", "60"), 60)
@@ -41,6 +46,38 @@ func Load() *Config {
 		SportID:        getenv("SUPER_SCORE_SPORT_ID", "1"),
 		Language:       getenv("SUPER_SCORE_LANGUAGE", "pt-BR"),
 		StaticDir:      getenv("STATIC_DIR", "../frontend/dist"),
+	}
+}
+
+// loadDotEnv lê um arquivo .env simples (linhas KEY=VALUE, comentários com #) e
+// popula variáveis de ambiente que ainda não estejam definidas. Não exporta nada
+// para o processo pai e não falha se o arquivo não existir.
+func loadDotEnv(path string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		idx := strings.IndexByte(line, '=')
+		if idx <= 0 {
+			continue
+		}
+		key := strings.TrimSpace(line[:idx])
+		val := strings.TrimSpace(line[idx+1:])
+		val = strings.Trim(val, `"'`)
+		if _, exists := os.LookupEnv(key); !exists {
+			_ = os.Setenv(key, val)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("aviso: erro ao ler %s: %v", path, err)
 	}
 }
 

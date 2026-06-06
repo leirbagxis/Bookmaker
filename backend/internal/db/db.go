@@ -113,6 +113,44 @@ func (db *DB) GetMatches() ([]models.Match, error) {
 	return matches, nil
 }
 
+// DeleteFinished remove do banco todos os jogos com status finalizado.
+// Retorna o número de linhas removidas.
+func (db *DB) DeleteFinished() (int64, error) {
+	q := `
+	DELETE FROM matches
+	WHERE status IN ('FT', 'FINISHED', 'CANCELLED', 'POSTPONED')
+	`
+	res, err := db.conn.Exec(q)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// DeleteNotIn remove do banco todos os jogos cujo event_id NÃO está
+// na lista fornecida. Útil para limpar registros órfãos (ex: virada do dia).
+// Retorna o número de linhas removidas.
+func (db *DB) DeleteNotIn(eventIDs []int64) (int64, error) {
+	if len(eventIDs) == 0 {
+		return 0, nil
+	}
+	placeholders := make([]byte, 0, len(eventIDs)*2)
+	args := make([]interface{}, len(eventIDs))
+	for i, id := range eventIDs {
+		if i > 0 {
+			placeholders = append(placeholders, ',')
+		}
+		placeholders = append(placeholders, '?')
+		args[i] = id
+	}
+	q := "DELETE FROM matches WHERE event_id NOT IN (" + string(placeholders) + ")"
+	res, err := db.conn.Exec(q, args...)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 func (db *DB) Close() error {
 	return db.conn.Close()
 }

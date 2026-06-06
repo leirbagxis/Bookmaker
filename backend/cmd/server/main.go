@@ -33,15 +33,16 @@ func main() {
 
 	oddsCache := cache.New[int64, []models.OddsMarket](cfg.CacheTTL)
 
-	matchSvc := services.NewMatchService(cfg, httpc, database)
-	oddsSvc := services.NewOddsService(cfg, httpc, oddsCache)
+	hub := websocket.NewHub()
 
-	// Inicia rotina de buscar partidas a cada 30s
+	matchSvc := services.NewMatchService(cfg, httpc, database, hub)
+	oddsSvc := services.NewOddsService(cfg, httpc, oddsCache, hub)
+
 	ctxPolling, cancelPolling := context.WithCancel(context.Background())
 	defer cancelPolling()
 	matchSvc.StartPolling(ctxPolling)
+	oddsSvc.StartEventPolling(ctxPolling)
 
-	hub := websocket.NewHub()
 	server := &websocket.Server{
 		Hub:     hub,
 		Matches: matchSvc,

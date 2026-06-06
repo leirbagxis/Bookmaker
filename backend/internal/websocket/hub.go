@@ -17,10 +17,15 @@ const (
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[*Client]bool
+	// eventWatchers: eventID -> conjunto de clientes que estão visualizando
+	eventWatchers map[int64]map[*Client]struct{}
 }
 
 func NewHub() *Hub {
-	return &Hub{clients: make(map[*Client]bool)}
+	return &Hub{
+		clients:       make(map[*Client]bool),
+		eventWatchers: make(map[int64]map[*Client]struct{}),
+	}
 }
 
 func (h *Hub) Register(c *Client) {
@@ -35,7 +40,84 @@ func (h *Hub) Unregister(c *Client) {
 		delete(h.clients, c)
 		close(c.send)
 	}
+	// Remove cliente de todos os eventWatchers
+	for eventID, watchers := range h.eventWatchers {
+		if _, watching := watchers[c]; watching {
+			delete(watchers, c)
+			if len(watchers) == 0 {
+				delete(h.eventWatchers, eventID)
+			}
+		}
+	}
 	h.mu.Unlock()
+}
+
+// SubscribeEvent registra o cliente como observador do evento.
+func (h *Hub) SubscribeEvent(c *Client, eventID int64) {
+	h.mu.Lock()
+	if _, ok := h.eventWatchers[eventID]; !ok {
+		h.eventWatchers[eventID] = make(map[*Client]struct{})
+	}
+	h.eventWatchers[eventID][c] = struct{}{}
+	h.mu.Unlock()
+}
+
+// UnsubscribeEvent remove o cliente como observador do evento.
+// Retorna true se era o último observador do evento.
+func (h *Hub) UnsubscribeEvent(c *Client, eventID int64) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	watchers, ok := h.eventWatchers[eventID]
+	if !ok {
+		return false
+	}
+	delete(watchers, c)
+	if len(watchers) == 0 {
+		delete(h.eventWatchers, eventID)
+		return true
+	}
+	return false
+}
+
+// ActiveEventIDs retorna a lista de eventIDs que têm pelo menos 1 observador.
+func (h *Hub) ActiveEventIDs() []int64 {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	ids := make([]int64, 0, len(h.eventWatchers))
+	for id := range h.eventWatchers {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// Broadcast envia msg para todos os clientes conectados.
+func (h *Hub) Broadcast(msg []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients {
+		select {
+		case c.send <- msg:
+		default:
+			// buffer cheio, descarta
+		}
+	}
+}
+
+// BroadcastOdds envia msg apenas para clientes que assinaram o evento.
+func (h *Hub) BroadcastOdds(eventID int64, msg []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	watchers, ok := h.eventWatchers[eventID]
+	if !ok {
+		return
+	}
+	for c := range watchers {
+		select {
+		case c.send <- msg:
+		default:
+			// buffer cheio, descarta
+		}
+	}
 }
 
 type Client struct {

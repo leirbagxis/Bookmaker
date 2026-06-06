@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -30,15 +31,26 @@ type rawCountryCode struct {
 }
 
 type RawMatch struct {
-	ID       string       `json:"id"`
-	Team1    *rawTeamObj  `json:"team1"`
-	Team2    *rawTeamObj  `json:"team2"`
-	Date     *rawMatchDate `json:"date"`
-	Status   int          `json:"status"`
-	State    int          `json:"state"`
-	Odds     []RawOdd     `json:"odds"`
-	Country  string       `json:"-"`
-	Category string       `json:"-"`
+	ID          string          `json:"id"`
+	Team1       *rawTeamObj     `json:"team1"`
+	Team2       *rawTeamObj     `json:"team2"`
+	Date        *rawMatchDate   `json:"date"`
+	Status      int             `json:"status"`
+	State       int             `json:"state"`
+	Odds        []RawOdd        `json:"odds"`
+	Country     string          `json:"-"`
+	Category    string          `json:"-"`
+	LiveMinute  json.RawMessage `json:"live_minute"`
+	Clock       json.RawMessage `json:"clock"`
+	Scores      json.RawMessage `json:"scores"`
+	LeadingTeam json.RawMessage `json:"leading_team"`
+}
+
+type rawScoreEntry struct {
+	Score       float64 `json:"score"`
+	TeamID      *string `json:"team_id,omitempty"`
+	Display     *string `json:"display,omitempty"`
+	PeriodScore *string `json:"period_score,omitempty"`
 }
 
 type RawCompetitionEnvelope struct {
@@ -69,6 +81,10 @@ type Match struct {
 	AwayOdd     float64 `json:"awayOdd"`
 	Country     string  `json:"country,omitempty"`
 	Category    string  `json:"category,omitempty"`
+	HomeScore   *int    `json:"homeScore,omitempty"`
+	AwayScore   *int    `json:"awayScore,omitempty"`
+	LiveMinute  *int    `json:"liveMinute,omitempty"`
+	Clock       string  `json:"clock,omitempty"`
 }
 
 func extractTeamFromObj(obj *rawTeamObj) string {
@@ -172,6 +188,27 @@ func NormalizeMatch(r RawMatch, competitionName, country, category string) (Matc
 
 	comp := strings.TrimSpace(competitionName)
 
+	var homeScore, awayScore *int
+	scores := parseScores(r.Scores)
+	if len(scores) >= 2 {
+		v0 := scores[0]
+		homeScore = &v0
+		v1 := scores[1]
+		awayScore = &v1
+	} else {
+		for _, s := range scores {
+			v := s
+			if homeScore == nil {
+				homeScore = &v
+				continue
+			}
+			if awayScore == nil {
+				awayScore = &v
+				break
+			}
+		}
+	}
+
 	return Match{
 		EventID:     eventID,
 		HomeTeam:    home,
@@ -184,5 +221,104 @@ func NormalizeMatch(r RawMatch, competitionName, country, category string) (Matc
 		AwayOdd:     awayOdd,
 		Country:     strings.ToUpper(strings.TrimSpace(country)),
 		Category:    strings.TrimSpace(category),
+		HomeScore:   homeScore,
+		AwayScore:   awayScore,
+		LiveMinute:  parseIntPtr(r.LiveMinute),
+		Clock:       parseString(r.Clock),
 	}, true
+}
+
+func parseIntPtr(raw json.RawMessage) *int {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var n int
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return &n
+	}
+	return nil
+}
+
+func parseString(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	// Fallback: se vier número, converte para string
+	var n json.Number
+	if err := json.Unmarshal(raw, &n); err == nil {
+		return n.String()
+	}
+	return ""
+}
+
+// parseScores converte o JSON bruto de "scores" em uma lista de inteiros.
+// Aceita diferentes formatos observados na API: array de objetos, array de
+// strings ("1", "2") ou array de números ([1, 2]).
+func parseScores(raw json.RawMessage) []int {
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	// Tentativa 1: array de objetos com campos como score/display/period_score
+	var entries []map[string]interface{}
+	if err := json.Unmarshal(raw, &entries); err == nil && len(entries) > 0 {
+		out := make([]int, 0, len(entries))
+		for _, e := range entries {
+			for _, key := range []string{"display", "period_score", "score"} {
+				if v, ok := e[key]; ok {
+					if n, ok := toInt(v); ok {
+						out = append(out, n)
+						break
+					}
+				}
+			}
+		}
+		return out
+	}
+	// Tentativa 2: array de strings
+	var strs []string
+	if err := json.Unmarshal(raw, &strs); err == nil {
+		out := make([]int, 0, len(strs))
+		for _, s := range strs {
+			if n, ok := toInt(s); ok {
+				out = append(out, n)
+			}
+		}
+		return out
+	}
+	// Tentativa 3: array de números
+	var nums []int
+	if err := json.Unmarshal(raw, &nums); err == nil {
+		return nums
+	}
+	// Tentativa 4: array de floats
+	var floats []float64
+	if err := json.Unmarshal(raw, &floats); err == nil {
+		out := make([]int, 0, len(floats))
+		for _, f := range floats {
+			out = append(out, int(f))
+		}
+		return out
+	}
+	return nil
+}
+
+func toInt(v interface{}) (int, bool) {
+	switch x := v.(type) {
+	case float64:
+		return int(x), true
+	case int:
+		return x, true
+	case int64:
+		return int(x), true
+	case string:
+		var n int
+		if _, err := fmt.Sscanf(x, "%d", &n); err == nil {
+			return n, true
+		}
+	}
+	return 0, false
 }

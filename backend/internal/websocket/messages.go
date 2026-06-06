@@ -32,6 +32,11 @@ func (s *Server) Dispatch(c *Client, raw []byte) {
 			return
 		}
 		s.handleEventOdds(c, *msg.EventID)
+	case "UNSUBSCRIBE_EVENT":
+		if msg.EventID == nil {
+			return
+		}
+		s.Hub.UnsubscribeEvent(c, *msg.EventID)
 	case "PING":
 		s.send(c, models.ServerMessage{Type: "PONG"})
 	default:
@@ -61,6 +66,9 @@ func (s *Server) handleEventOdds(c *Client, eventID int64) {
 		s.sendError(c, "Erro ao buscar odds")
 		return
 	}
+	// Marca cliente como observador deste evento para receber ODDS_UPDATED
+	s.Hub.SubscribeEvent(c, eventID)
+
 	data, _ := json.Marshal(markets)
 	s.send(c, models.ServerMessage{Type: "EVENT_ODDS", EventID: eventID, Data: data})
 }
