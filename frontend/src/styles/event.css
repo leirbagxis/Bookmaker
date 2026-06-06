@@ -26,16 +26,29 @@
   gap: var(--space-2);
 }
 
+.event__head-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 .event__competition {
   font-size: 12px;
   text-transform: uppercase;
   color: var(--color-text-muted);
   letter-spacing: 0.5px;
+  flex: 1;
+  min-width: 0;
 }
 
 .event__title {
   font-size: 22px;
   font-weight: 700;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }
 
 .event__sep {
@@ -43,6 +56,17 @@
   font-weight: 400;
   font-size: 18px;
   margin: 0 var(--space-1);
+}
+
+.event__score {
+  font-size: 18px;
+  font-weight: 800;
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 8px;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .event__meta {
@@ -89,6 +113,7 @@
 .event__odd strong {
   font-size: 18px;
   color: var(--color-primary-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 .event__tabs-container {
@@ -141,6 +166,35 @@
   gap: var(--space-4);
 }
 
+.odds-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.odds-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.odds-group__title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+  padding: 0 var(--space-1);
+  border-left: 2px solid var(--color-primary-soft);
+  padding-left: var(--space-2);
+}
+
+.odds-group__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
 .odds-market {
   background: var(--color-bg-elev);
   border: 1px solid var(--color-border);
@@ -170,6 +224,17 @@
   border-radius: 99px;
 }
 
+.odds-market__period-tag {
+  font-size: 10px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+  margin-left: var(--space-1);
+}
+
 .odds-market__grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -188,9 +253,10 @@
   border-radius: var(--radius-md);
   color: var(--color-text);
   text-align: left;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
   min-height: 44px;
   width: 100%;
+  position: relative;
 }
 
 .odd-button:hover {
@@ -211,6 +277,16 @@
 
 .odd-button--selected .odd-button__price {
   color: #fff;
+}
+
+.odd-button--flash-up {
+  animation: flash-up 1.5s ease-out;
+  border-color: var(--color-success);
+}
+
+.odd-button--flash-down {
+  animation: flash-down 1.5s ease-out;
+  border-color: var(--color-danger);
 }
 
 .odd-button__name {
@@ -234,6 +310,27 @@
   color: var(--color-primary-soft);
   font-variant-numeric: tabular-nums;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.odd-button__arrow {
+  font-size: 9px;
+  line-height: 1;
+}
+
+.odd-button__arrow--up {
+  color: var(--color-success);
+}
+
+.odd-button__arrow--down {
+  color: var(--color-danger);
+}
+
+.odd-button--selected .odd-button__arrow--up,
+.odd-button--selected .odd-button__arrow--down {
+  color: #fff;
 }
 
 .odd-button--locked {
@@ -241,6 +338,11 @@
   cursor: not-allowed;
   background: var(--color-bg-elev);
   border-color: transparent;
+}
+
+.odd-button--locked:hover {
+  border-color: transparent;
+  background: var(--color-bg-elev);
 }
 
 .odd-button__locked-icon {
@@ -258,6 +360,13 @@
 .odds-market--overunder .odd-button {
   flex-direction: row;
   justify-content: space-between;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .odd-button--flash-up,
+  .odd-button--flash-down {
+    animation: none;
+  }
 }
 
 @media (max-width: 480px) {

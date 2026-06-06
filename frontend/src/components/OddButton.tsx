@@ -1,5 +1,6 @@
 import type { OddSelection } from '../types/odds';
 import { useBetSlip } from '../context/BetSlipContext';
+import { useOddChange } from '../hooks/useOddChange';
 
 type Props = {
   selection: OddSelection;
@@ -19,14 +20,14 @@ export function OddButton({ selection, compact }: Props) {
   const { items, add, remove } = useBetSlip();
   const key = uniqueKey(selection);
   const selected = items.some((it) => uniqueKey(it.selection) === key);
-
   const isLocked = selection.price <= 1.0;
+
+  const { change, flash } = useOddChange(selection.price, `${selection.eventId}::${selection.id}::${selection.marketId}`);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (isLocked) return;
-    
     if (selected) {
       remove(selection);
     } else {
@@ -34,10 +35,21 @@ export function OddButton({ selection, compact }: Props) {
     }
   };
 
+  const classes = [
+    'odd-button',
+    selected && 'odd-button--selected',
+    compact && 'odd-button--compact',
+    isLocked && 'odd-button--locked',
+    flash && change === 'up' && 'odd-button--flash-up',
+    flash && change === 'down' && 'odd-button--flash-down',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <button
       type="button"
-      className={`odd-button${selected ? ' odd-button--selected' : ''}${compact ? ' odd-button--compact' : ''}${isLocked ? ' odd-button--locked' : ''}`}
+      className={classes}
       onClick={handleClick}
       disabled={isLocked}
       aria-pressed={selected}
@@ -49,7 +61,14 @@ export function OddButton({ selection, compact }: Props) {
       ) : (
         <>
           <span className="odd-button__name">{selection.name}</span>
-          <span className="odd-button__price">{formatPrice(selection.price)}</span>
+          <span className="odd-button__price">
+            <span className="odd-button__price-value">{formatPrice(selection.price)}</span>
+            {change !== 'same' && (
+              <span className={`odd-button__arrow odd-button__arrow--${change}`} aria-hidden="true">
+                {change === 'up' ? '▲' : '▼'}
+              </span>
+            )}
+          </span>
         </>
       )}
     </button>

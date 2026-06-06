@@ -8,6 +8,10 @@ export type Match = {
   homeOdd: number;
   drawOdd: number;
   awayOdd: number;
+  homeScore?: number;
+  awayScore?: number;
+  liveMinute?: number;
+  clock?: string;
 };
 
 export type CompetitionGroup = {

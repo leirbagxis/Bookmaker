@@ -1,10 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useWebSocket } from '../context/WebSocketContext';
 import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
-import { OddsMarketView } from '../components/OddsMarket';
+import { OddsMarketView, OddsMarketsGrouped } from '../components/OddsMarket';
+import { LiveBadge } from '../components/LiveBadge';
+import { LastUpdated } from '../components/LastUpdated';
 import type { OddsMarket } from '../types/odds';
 import type { Match } from '../types/match';
 
@@ -30,6 +32,82 @@ const CATEGORIES = [
   { id: 'cards', label: 'Cartões' },
 ];
 
+const normalize = (s: string) =>
+  s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
+
+function marketMatchesCategory(market: OddsMarket, category: string): boolean {
+  if (category === 'all') return true;
+  const marketName = normalize(market.name);
+  const selectionsText = market.selections.map((s) => normalize(s.name)).join(' ');
+  const combined = `${marketName} ${selectionsText}`;
+
+  switch (category) {
+    case 'main':
+      return (
+        marketName.includes('resultado') ||
+        marketName.includes('vencedor') ||
+        marketName.includes('chance') ||
+        marketName.includes('ambas') ||
+        marketName.includes('1x2') ||
+        marketName.includes('partida') ||
+        marketName.includes('empate') ||
+        marketName.includes('vence') ||
+        marketName.includes('draw') ||
+        marketName.includes('winner')
+      );
+    case 'goals':
+      return (
+        marketName.includes('gol') ||
+        marketName.includes('placar') ||
+        marketName.includes('marcar') ||
+        marketName.includes('score') ||
+        selectionsText.includes('gol')
+      );
+    case 'overunder':
+      return (
+        marketName.includes('mais') ||
+        marketName.includes('menos') ||
+        marketName.includes('total') ||
+        marketName.includes('over') ||
+        marketName.includes('under') ||
+        marketName.includes('acima') ||
+        marketName.includes('abaixo') ||
+        selectionsText.includes('mais') ||
+        selectionsText.includes('menos') ||
+        selectionsText.includes('acima') ||
+        selectionsText.includes('abaixo')
+      );
+    case 'handicap':
+      return (
+        marketName.includes('handicap') ||
+        marketName.includes('asiatico') ||
+        marketName.includes('spread') ||
+        marketName.includes('vantagem')
+      );
+    case 'corners':
+      return (
+        marketName.includes('escanteio') ||
+        marketName.includes('canto') ||
+        marketName.includes('corner') ||
+        selectionsText.includes('escanteio') ||
+        selectionsText.includes('canto') ||
+        selectionsText.includes('corner')
+      );
+    case 'cards':
+      return (
+        marketName.includes('cartao') ||
+        marketName.includes('vermelho') ||
+        marketName.includes('amarelo') ||
+        marketName.includes('advertencia') ||
+        marketName.includes('card') ||
+        selectionsText.includes('cartao') ||
+        selectionsText.includes('card')
+      );
+    default:
+      return false;
+  }
+}
+
 export function EventPage() {
   const { eventId } = useParams<{ eventId: string }>();
   const id = Number(eventId);
@@ -38,6 +116,7 @@ export function EventPage() {
   const [match, setMatch] = useState<Match | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
   useEffect(() => {
     if (status !== 'open' || !Number.isFinite(id) || id <= 0) return;
@@ -45,7 +124,7 @@ export function EventPage() {
     setError(null);
 
     const unsub = subscribe((msg) => {
-      if (msg.type === 'EVENT_ODDS' && msg.event_id === id) {
+      if ((msg.type === 'EVENT_ODDS' || msg.type === 'ODDS_UPDATED') && msg.event_id === id) {
         const data = msg.data as { markets?: OddsMarket[]; match?: Match } | OddsMarket[];
         if (Array.isArray(data)) {
           setMarkets(data);
@@ -54,7 +133,8 @@ export function EventPage() {
           if (data.match) setMatch(data.match);
         }
         setError(null);
-      } else if (msg.type === 'TODAY_MATCHES') {
+        setLastUpdated(Date.now());
+      } else if (msg.type === 'TODAY_MATCHES' || msg.type === 'MATCHES_UPDATED') {
         const groups = msg.data as Array<{ matches: Match[] }>;
         for (const g of groups) {
           const found = g.matches.find((m) => m.eventId === id);
@@ -70,68 +150,15 @@ export function EventPage() {
 
     send({ type: 'GET_TODAY_MATCHES' });
     send({ type: 'GET_EVENT_ODDS', event_id: id });
-    return unsub;
+    return () => {
+      unsub();
+      send({ type: 'UNSUBSCRIBE_EVENT', event_id: id });
+    };
   }, [status, id, send, subscribe]);
 
   const filteredMarkets = useMemo(() => {
     if (!markets) return [];
-    
-    const normalize = (s: string) => 
-      s ? s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase() : "";
-
-    if (activeCategory === 'all') return markets;
-
-    return markets.filter((m) => {
-      const marketName = normalize(m.name);
-      const selectionsText = m.selections.map(s => normalize(s.name)).join(' ');
-      const combined = `${marketName} ${selectionsText}`;
-      
-      switch (activeCategory) {
-        case 'main':
-          // Principais: Resultado Final, Chance Dupla, Ambas Marcam, Vencedor, 1x2
-          return marketName.includes('resultado') || marketName.includes('vencedor') || 
-                 marketName.includes('chance') || marketName.includes('ambas') || 
-                 marketName.includes('1x2') || marketName.includes('partida') || 
-                 marketName.includes('empate') || marketName.includes('vence') || 
-                 marketName.includes('draw') || marketName.includes('winner');
-        
-        case 'goals':
-          // Gols: Total de Gols, Placar Exato, Marcar Gols
-          return marketName.includes('gol') || marketName.includes('placar') || 
-                 marketName.includes('marcar') || marketName.includes('score') ||
-                 selectionsText.includes('gol');
-        
-        case 'overunder':
-          // Mais/Menos: Over, Under, Acima, Abaixo, Mais, Menos
-          return marketName.includes('mais') || marketName.includes('menos') || 
-                 marketName.includes('total') || marketName.includes('over') || 
-                 marketName.includes('under') || marketName.includes('acima') || 
-                 marketName.includes('abaixo') || selectionsText.includes('mais') || 
-                 selectionsText.includes('menos') || selectionsText.includes('acima') || 
-                 selectionsText.includes('abaixo');
-        
-        case 'handicap':
-          // Handicap: Asiático, Europeu, Spread
-          return marketName.includes('handicap') || marketName.includes('asiatico') || 
-                 marketName.includes('spread') || marketName.includes('vantagem');
-        
-        case 'corners':
-          // Escanteios: Cantos, Corners, Tiros de Canto
-          return marketName.includes('escanteio') || marketName.includes('canto') || 
-                 marketName.includes('corner') || selectionsText.includes('escanteio') || 
-                 selectionsText.includes('canto') || selectionsText.includes('corner');
-        
-        case 'cards':
-          // Cartões: Amarelo, Vermelho, Advertência
-          return marketName.includes('cartao') || marketName.includes('vermelho') || 
-                 marketName.includes('amarelo') || marketName.includes('advertencia') || 
-                 marketName.includes('card') || selectionsText.includes('cartao') || 
-                 selectionsText.includes('card');
-        
-        default:
-          return false;
-      }
-    });
+    return markets.filter((m) => marketMatchesCategory(m, activeCategory));
   }, [markets, activeCategory]);
 
   const refresh = () => {
@@ -144,19 +171,31 @@ export function EventPage() {
     return <ErrorState message="Identificador de partida inválido." />;
   }
 
+  const isLive = match?.status === 'LIVE';
+  const showScore =
+    isLive && typeof match?.homeScore === 'number' && typeof match?.awayScore === 'number';
+
   return (
     <div className="event">
       <Link to="/" className="event__back">← Voltar</Link>
 
       {match ? (
         <header className="event__head">
-          <span className="event__competition">{match.competition || 'Campeonato'}</span>
+          <div className="event__head-top">
+            <span className="event__competition">{match.competition || 'Campeonato'}</span>
+            {isLive && <LiveBadge liveMinute={match.liveMinute} clock={match.clock} size="md" />}
+            {lastUpdated && <LastUpdated timestamp={lastUpdated} label="Odds" />}
+          </div>
           <h1 className="event__title">
-            {match.homeTeam} <span className="event__sep">x</span> {match.awayTeam}
+            {match.homeTeam}{' '}
+            {showScore && <strong className="event__score">{match.homeScore}</strong>}
+            <span className="event__sep">x</span>
+            {match.awayTeam}{' '}
+            {showScore && <strong className="event__score">{match.awayScore}</strong>}
           </h1>
           <div className="event__meta">
             <span>{formatTime(match.startTime)}</span>
-            {match.status && <span className="event__status">{match.status}</span>}
+            {match.status && !isLive && <span className="event__status">{match.status}</span>}
           </div>
           <div className="event__main-odds">
             <div className="event__odd">
@@ -202,13 +241,20 @@ export function EventPage() {
         )}
         {!error && markets && markets.length > 0 && (
           <div className="event__markets">
-            {filteredMarkets.length > 0 ? (
-              filteredMarkets.map((m) => (
-                <OddsMarketView key={m.id} market={m} />
-              ))
+            {activeCategory === 'all' ? (
+              filteredMarkets.length > 0 ? (
+                <OddsMarketsGrouped markets={filteredMarkets} />
+              ) : (
+                <EmptyState
+                  title="Nenhum mercado disponível"
+                  description="Tente selecionar outra aba."
+                />
+              )
+            ) : filteredMarkets.length > 0 ? (
+              filteredMarkets.map((m) => <OddsMarketView key={m.id} market={m} />)
             ) : (
-              <EmptyState 
-                title="Nenhum mercado nesta categoria" 
+              <EmptyState
+                title="Nenhum mercado nesta categoria"
                 description="Tente selecionar outra aba."
               />
             )}
