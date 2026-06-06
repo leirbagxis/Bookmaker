@@ -5,6 +5,7 @@ import { BetSlipProvider } from './context/BetSlipContext';
 import { Header } from './components/Header';
 import { BottomNavigation } from './components/BottomNavigation';
 import { BetSlip } from './components/BetSlip';
+import { FloatingBetSlipTrigger } from './components/FloatingBetSlipTrigger';
 import { HomePage } from './pages/HomePage';
 import { EventPage } from './pages/EventPage';
 import { EmptyState } from './components/EmptyState';
@@ -41,6 +42,7 @@ function App() {
             </main>
             
             <BetSlip show={showBetSlip} onClose={() => setShowBetSlip(false)} />
+            <FloatingBetSlipTrigger onClick={() => setShowBetSlip(true)} />
             
             <footer className="app__footer">
               Projeto demonstrativo. Apostas simuladas. Não envolve dinheiro real.

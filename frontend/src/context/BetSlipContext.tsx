@@ -8,6 +8,10 @@ export type BetSlipItem = {
   addedAt: number;
 };
 
+export function getSelectionKey(s: OddSelection): string {
+  return `${s.eventId}::${s.marketId}::${s.id}`;
+}
+
 type BetSlipContextValue = {
   items: BetSlipItem[];
   stake: number;
@@ -44,11 +48,6 @@ function saveItems(items: BetSlipItem[]) {
   }
 }
 
-function uniqueKey(s: OddSelection): string {
-  // Simplificado para garantir estabilidade: evento + id da seleção
-  return `${s.eventId}-${s.id}`;
-}
-
 export function BetSlipProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<BetSlipItem[]>(() => loadItems());
   const [stake, setStakeState] = useState<number>(0);
@@ -59,15 +58,15 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback((selection: OddSelection) => {
     setItems((prev) => {
-      const key = uniqueKey(selection);
-      const filtered = prev.filter((it) => uniqueKey(it.selection) !== key);
+      // Regra de múltiplas: Apenas uma seleção por evento
+      const filtered = prev.filter((it) => it.selection.eventId !== selection.eventId);
       return [...filtered, { selection, addedAt: Date.now() }];
     });
   }, []);
 
   const remove = useCallback((selection: OddSelection) => {
-    const key = uniqueKey(selection);
-    setItems((prev) => prev.filter((it) => uniqueKey(it.selection) !== key));
+    const key = getSelectionKey(selection);
+    setItems((prev) => prev.filter((it) => getSelectionKey(it.selection) !== key));
   }, []);
 
   const clear = useCallback(() => {
@@ -80,6 +79,7 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const totalOdd = useMemo(() => {
+    if (items.length === 0) return 0;
     return items.reduce((acc, it) => acc * it.selection.price, 1);
   }, [items]);
 

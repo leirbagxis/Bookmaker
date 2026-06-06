@@ -1,15 +1,11 @@
 import type { OddSelection } from '../types/odds';
-import { useBetSlip } from '../context/BetSlipContext';
+import { useBetSlip, getSelectionKey } from '../context/BetSlipContext';
 import { useOddChange } from '../hooks/useOddChange';
 
 type Props = {
   selection: OddSelection;
   compact?: boolean;
 };
-
-function uniqueKey(s: OddSelection): string {
-  return `${s.eventId}::${s.id}::${s.marketId}`;
-}
 
 function formatPrice(n: number): string {
   if (!Number.isFinite(n) || n <= 0) return '-';
@@ -18,11 +14,11 @@ function formatPrice(n: number): string {
 
 export function OddButton({ selection, compact }: Props) {
   const { items, add, remove } = useBetSlip();
-  const key = uniqueKey(selection);
-  const selected = items.some((it) => uniqueKey(it.selection) === key);
+  const key = getSelectionKey(selection);
+  const selected = items.some((it) => getSelectionKey(it.selection) === key);
   const isLocked = selection.price <= 1.0;
 
-  const { change, flash } = useOddChange(selection.price, `${selection.eventId}::${selection.id}::${selection.marketId}`);
+  const { change, flash } = useOddChange(selection.price, key);
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();

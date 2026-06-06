@@ -60,7 +60,7 @@ function orderSelections(market: OddsMarket) {
   });
 }
 
-export function OddsMarketView({ market }: Props) {
+export function OddsMarketView({ market, homeTeam, awayTeam }: Props & { homeTeam?: string; awayTeam?: string }) {
   const period = detectPeriod(market.name);
   const overUnder = isOverUnder(market.name);
   const selections = orderSelections(market);
@@ -73,7 +73,10 @@ export function OddsMarketView({ market }: Props) {
       </h3>
       <div className="odds-market__grid">
         {selections.map((sel) => (
-          <OddButton key={`${market.id}::${sel.id}`} selection={sel} />
+          <OddButton 
+            key={`${market.id}::${sel.id}`} 
+            selection={{ ...sel, homeTeam: sel.homeTeam || homeTeam, awayTeam: sel.awayTeam || awayTeam }} 
+          />
         ))}
       </div>
     </section>
@@ -82,6 +85,8 @@ export function OddsMarketView({ market }: Props) {
 
 type GroupedProps = {
   markets: OddsMarket[];
+  homeTeam?: string;
+  awayTeam?: string;
 };
 
 const PERIOD_LABELS: Record<Period, string> = {
@@ -92,7 +97,7 @@ const PERIOD_LABELS: Record<Period, string> = {
 
 const PERIOD_ORDER: Period[] = ['FULL', '1H', '2H'];
 
-export function OddsMarketsGrouped({ markets }: GroupedProps) {
+export function OddsMarketsGrouped({ markets, homeTeam, awayTeam }: GroupedProps) {
   const groups: Record<Period, OddsMarket[]> = { FULL: [], '1H': [], '2H': [] };
   for (const m of markets) {
     groups[detectPeriod(m.name)].push(m);
@@ -108,7 +113,7 @@ export function OddsMarketsGrouped({ markets }: GroupedProps) {
             <h3 className="odds-group__title">{PERIOD_LABELS[p]}</h3>
             <div className="odds-group__list">
               {list.map((m) => (
-                <OddsMarketView key={m.id} market={m} />
+                <OddsMarketView key={m.id} market={m} homeTeam={homeTeam} awayTeam={awayTeam} />
               ))}
             </div>
           </div>

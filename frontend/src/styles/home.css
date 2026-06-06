@@ -201,12 +201,21 @@
   text-align: left;
   transition: border-color 0.15s ease, background 0.15s ease;
   width: 100%;
-  position: relative;
+}
+
+.match-card__link {
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 .match-card:hover {
   border-color: var(--color-primary-soft);
-  background: var(--color-surface-2);
+}
+
+.match-card__link:hover .match-card__team {
+  color: var(--color-primary-soft);
 }
 
 .match-card--live {
