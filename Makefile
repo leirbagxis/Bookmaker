@@ -18,11 +18,11 @@ deps: ## Instala dependências (go mod download e npm install)
 	cd $(FRONTEND_DIR) && npm install
 
 build-frontend: ## Faz build do frontend (gera frontend/dist)
-	cd $(FRONTEND_DIR) && npm run build
+	cd $(FRONTEND_DIR) && npm i && npm run build
 
 build-backend: ## Faz build do binário Go em backend/bin/superbet
 	mkdir -p $(BACKEND_DIR)/bin
-	cd $(BACKEND_DIR) && go build -o bin/superbet ./cmd/server
+	cd $(BACKEND_DIR) && go mod tidy && go build -o bin/superbet ./cmd/server
 
 build: build-frontend build-backend run ## Faz build do frontend e do backend, depois roda o servidor
 
