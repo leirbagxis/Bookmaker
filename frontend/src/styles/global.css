@@ -128,6 +128,32 @@ ul {
   gap: var(--space-2);
 }
 
+.app-header__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.app-header__balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.1;
+}
+
+.app-header__balance-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.5px;
+}
+
+.app-header__balance-value {
+  font-size: 15px;
+  color: var(--color-primary-soft);
+  font-weight: 800;
+}
+
 .app-header__logo {
   display: inline-flex;
   align-items: center;

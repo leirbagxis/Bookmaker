@@ -1,0 +1,233 @@
+.my-bets {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.my-bets__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.my-bets__title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0;
+}
+
+.my-bets__tabs {
+  display: flex;
+  background: var(--color-bg-elev);
+  padding: 4px;
+  border-radius: var(--radius-md);
+  gap: 4px;
+}
+
+.my-bets__tab {
+  flex: 1;
+  border: none;
+  background: none;
+  color: var(--color-text-dim);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.my-bets__tab--active {
+  background: var(--color-bg);
+  color: var(--color-primary-soft);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.my-bets__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Ticket Card - Estilo Moderno Dashboard */
+.ticket-card {
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  position: relative;
+  overflow: hidden;
+}
+
+.ticket-card--won { border-color: rgba(30, 192, 112, 0.4); }
+.ticket-card--lost { border-color: rgba(217, 83, 79, 0.4); }
+
+.ticket-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: var(--space-2);
+  gap: var(--space-2);
+}
+
+.ticket-card__header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ticket-card__id {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--color-primary-soft);
+}
+
+.ticket-card__date {
+  font-size: 0.65rem;
+  color: var(--color-text-dim);
+}
+
+.ticket-card__selections {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.ticket-card__selection {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.ticket-card__selection-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-card__selection-match {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-bottom: 2px;
+}
+
+.ticket-card__selection-market {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--color-text-dim);
+  font-weight: 700;
+}
+
+.ticket-card__selection-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ticket-card__selection-price {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--color-primary-soft);
+}
+
+.ticket-card__footer {
+  background: rgba(0, 0, 0, 0.1);
+  margin: 0 calc(var(--space-3) * -1) calc(var(--space-3) * -1);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.ticket-card__meta {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.ticket-card__meta-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-card__meta-label {
+  font-size: 0.65rem;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+}
+
+.ticket-card__meta-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.ticket-card__return {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-card__return-label {
+  font-size: 0.7rem;
+  color: var(--color-text-dim);
+}
+
+.ticket-card__return-value {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--color-primary-soft);
+}
+
+.ticket-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ticket-card__share-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.ticket-card__share-btn svg {
+  width: 10px;
+  height: 10px;
+}
+
+.ticket-card__share-btn:hover {
+  background: rgba(30, 192, 112, 0.1);
+  color: var(--color-primary-soft);
+  border-color: var(--color-primary-soft);
+}
+
+.ticket-card__status-badge {
+  position: absolute;
+  top: 10px;
+  right: -30px;
+  background: var(--color-text-dim);
+  color: white;
+  padding: 2px 40px;
+  font-size: 0.6rem;
+  font-weight: 900;
+  transform: rotate(45deg);
+}
+
+.ticket-card__status-badge--won { background: #1ec070; color: #062013; }
+.ticket-card__status-badge--lost { background: #d9534f; }

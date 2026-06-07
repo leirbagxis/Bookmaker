@@ -17,11 +17,6 @@ function formatTime(iso: string): string {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function formatOdd(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '-';
-  return n.toFixed(2);
-}
-
 const CATEGORIES = [
   { id: 'main', label: 'Principais' },
   { id: 'goals', label: 'Gols' },
@@ -33,49 +28,60 @@ const CATEGORIES = [
 const normalize = (s: string) =>
   s ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
 
-function getMarketCategory(marketName: string): string | null {
+function getMarketCategories(marketName: string): string[] {
   const n = normalize(marketName);
+  const cats: string[] = [];
 
-  // 1. Rejeição de mercados de jogadores ou padrões muito poluídos
-  // Se tiver vírgula ou keywords de jogador, tchau.
-  if (marketName.includes(',')) return null;
-  const playerKeywords = ['chutes a gol do', 'finalizacoes do', 'finalizações do', 'marcador', 'para marcar', 'para dar'];
-  if (playerKeywords.some(k => n.includes(k))) return null;
+  // 1. REJEIÇÃO DE COMBINADAS (Bet Builder / Combinadas Prontas)
+  // A Superbet usa ";" para separar os eventos de uma combinada pronta.
+  if (marketName.includes(';') || marketName.includes(' + ')) return [];
 
-  // 2. Principais
-  if (n === 'resultado final' || n === '1x2' || n === 'vencedor do encontro' || n === 'resultado') return 'main';
-  if (n.includes('dupla chance') || n.includes('double chance')) return 'main';
-  if (n.includes('ambas marcam') || n.includes('ambas as equipes marcam')) return 'main';
-  if (n.includes('empate anula') || n.includes('draw no bet')) return 'main';
-  if (n.includes('ambas as equipes marcam ou mais de 2.5') || n.includes('ambas as equipes marcam & mais de 2.5')) return 'main';
-
-  // 3. Gols
-  if (n.includes('total de gols') || n.includes('mais/menos gols') || n.includes('over/under goals')) {
-    return 'goals';
+  // 2. LÓGICA DE CARTÕES
+  if (n.includes('cartao') || n.includes('cartoe') || n.includes('card') || n.includes('punicao') || n.includes('advertencia')) {
+    cats.push('cards');
+    // Apenas o "Total de Cartões" da partida vai para a aba principal
+    if (n.includes('total') && !n.includes('1 tempo') && !n.includes('1t') && !n.includes('equipe')) {
+      cats.push('main');
+    }
   }
-  if (n.includes('1 gol') || n.includes('primeiro gol') || n.includes('1st goal')) return 'goals';
 
-  // 4. Escanteios
+  // 3. RESTANTE DAS CATEGORIAS
+  
+  // Principais (Outros)
+  const isOtherMain = 
+    n === 'resultado final' || n === '1x2' || n === 'vencedor do encontro' || n === 'resultado' ||
+    n.includes('dupla chance') || n.includes('double chance') ||
+    n.includes('ambas marcam') || n.includes('ambas as equipes marcam') ||
+    n.includes('empate anula') || n.includes('draw no bet') ||
+    n.includes('ambas as equipes marcam ou mais de 2.5');
+  
+  if (isOtherMain) cats.push('main');
+
+  // Gols
+  if (
+    n.includes('total de gols') || n.includes('mais/menos gols') || n.includes('over/under goals') ||
+    n.includes('1 gol') || n.includes('primeiro gol') || n.includes('1st goal')
+  ) {
+    cats.push('goals');
+  }
+
+  // Escanteios
   if (n.includes('escanteio') || n.includes('canto') || n.includes('corner')) {
-    // Aceita totais da partida ou de cada equipe
-    if (n.includes('total') || n.includes('mais/menos') || n.includes('over/under') || n.includes('faixa')) return 'corners';
+    if (n.includes('total') || n.includes('mais/menos') || n.includes('over/under') || n.includes('faixa')) {
+      cats.push('corners');
+    }
   }
 
-  // 5. Cartões
-  if (n.includes('cartao') || n.includes('cartão') || n.includes('card') || n.includes('advertencia') || n.includes('punicao') || n.includes('punitivos')) {
-    return 'cards';
-  }
-
-  // 6. Estatísticas
+  // Estatísticas
   if (n.includes('chute') || n.includes('finalizacao') || n.includes('finalização') || n.includes('falta') || n.includes('remate')) {
-    return 'stats';
+    cats.push('stats');
   }
 
-  return null;
+  return cats;
 }
 
 function marketMatchesCategory(market: OddsMarket, category: string): boolean {
-  return getMarketCategory(market.name) === category;
+  return getMarketCategories(market.name).includes(category);
 }
 
 export function EventPage() {
@@ -96,12 +102,14 @@ export function EventPage() {
     const unsub = subscribe((msg) => {
       if ((msg.type === 'EVENT_ODDS' || msg.type === 'ODDS_UPDATED') && msg.event_id === id) {
         const data = msg.data as { markets?: OddsMarket[]; match?: Match } | OddsMarket[];
+        let rawMarkets: OddsMarket[] = [];
         if (Array.isArray(data)) {
-          setMarkets(data);
+          rawMarkets = data;
         } else {
-          setMarkets(data.markets ?? []);
+          rawMarkets = data.markets ?? [];
           if (data.match) setMatch(data.match);
         }
+        setMarkets(rawMarkets);
         setError(null);
         setLastUpdated(Date.now());
       } else if (msg.type === 'TODAY_MATCHES' || msg.type === 'MATCHES_UPDATED') {
@@ -128,6 +136,10 @@ export function EventPage() {
 
   const filteredMarkets = useMemo(() => {
     if (!markets) return [];
+    
+    // Log para depuração (opcional, remover se não quiser poluir o console)
+    // console.log('DEBUG: Filtrando mercados:', markets.length, activeCategory);
+
     // Primeiro filtro: apenas mercados que pertencem a pelo menos uma categoria permitida
     const basicMarkets = markets.filter((m) => 
       CATEGORIES.some(cat => marketMatchesCategory(m, cat.id))
@@ -171,20 +183,6 @@ export function EventPage() {
           <div className="event__meta">
             <span>{formatTime(match.startTime)}</span>
             {match.status && !isLive && <span className="event__status">{match.status}</span>}
-          </div>
-          <div className="event__main-odds">
-            <div className="event__odd">
-              <span>1</span>
-              <strong>{formatOdd(match.homeOdd)}</strong>
-            </div>
-            <div className="event__odd">
-              <span>X</span>
-              <strong>{formatOdd(match.drawOdd)}</strong>
-            </div>
-            <div className="event__odd">
-              <span>2</span>
-              <strong>{formatOdd(match.awayOdd)}</strong>
-            </div>
           </div>
         </header>
       ) : (

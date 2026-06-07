@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"superbet/backend/internal/models"
 	"github.com/gorilla/websocket"
 )
 
@@ -124,6 +125,9 @@ type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
 	send chan []byte
+
+	mu   sync.Mutex
+	user *models.User
 }
 
 func newClient(hub *Hub, conn *websocket.Conn) *Client {
@@ -132,6 +136,18 @@ func newClient(hub *Hub, conn *websocket.Conn) *Client {
 		conn: conn,
 		send: make(chan []byte, 256),
 	}
+}
+
+func (c *Client) SetUser(u *models.User) {
+	c.mu.Lock()
+	c.user = u
+	c.mu.Unlock()
+}
+
+func (c *Client) GetUser() *models.User {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.user
 }
 
 func (c *Client) readPump(srv *Server) {

@@ -49,15 +49,40 @@ function isOverUnder(name: string): boolean {
 
 function orderSelections(market: OddsMarket) {
   if (!isOverUnder(market.name)) return market.selections;
-  return [...market.selections].sort((a, b) => {
-    const aN = normalize(a.name);
-    const bN = normalize(b.name);
-    const aOver = aN.includes('mais') || aN.includes('over');
-    const bOver = bN.includes('mais') || bN.includes('over');
-    if (aOver && !bOver) return -1;
-    if (!aOver && bOver) return 1;
-    return 0;
-  });
+
+  const over: typeof market.selections = [];
+  const under: typeof market.selections = [];
+
+  for (const sel of market.selections) {
+    const n = normalize(sel.name);
+    if (n.includes('mais') || n.includes('over')) {
+      over.push(sel);
+    } else if (n.includes('menos') || n.includes('under')) {
+      under.push(sel);
+    } else {
+      // Fallback para nomes que não contenham as palavras chave (raro em over/under)
+      over.push(sel);
+    }
+  }
+
+  // Ordenar cada grupo numericamente se possível (ex: Mais 0.5, Mais 1.5)
+  const sortByValue = (a: any, b: any) => {
+    const valA = parseFloat(a.name.replace(/[^0-9.]/g, '')) || 0;
+    const valB = parseFloat(b.name.replace(/[^0-9.]/g, '')) || 0;
+    return valA - valB;
+  };
+
+  over.sort(sortByValue);
+  under.sort(sortByValue);
+
+  // Entrelaçar para manter o grid de 2 colunas: [Mais 0.5, Menos 0.5, Mais 1.5, Menos 1.5...]
+  const result: typeof market.selections = [];
+  const max = Math.max(over.length, under.length);
+  for (let i = 0; i < max; i++) {
+    if (over[i]) result.push(over[i]);
+    if (under[i]) result.push(under[i]);
+  }
+  return result;
 }
 
 export function OddsMarketView({ market, homeTeam, awayTeam }: Props & { homeTeam?: string; awayTeam?: string }) {
@@ -71,7 +96,7 @@ export function OddsMarketView({ market, homeTeam, awayTeam }: Props & { homeTea
         {market.name}
         {period !== 'FULL' && <span className="odds-market__period-tag">{period === '1H' ? '1T' : '2T'}</span>}
       </h3>
-      <div className="odds-market__grid">
+      <div className={`odds-market__grid odds-market__grid--cols-${Math.min(selections.length, 4)}`}>
         {selections.map((sel) => (
           <OddButton 
             key={`${market.id}::${sel.id}`} 

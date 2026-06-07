@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { OddSelection } from '../types/odds';
+import { useWebSocket } from './WebSocketContext';
 
 const STORAGE_KEY = 'superbet.betslip.v1';
 
@@ -17,11 +18,13 @@ type BetSlipContextValue = {
   stake: number;
   totalOdd: number;
   potentialReturn: number;
+  lastTicketId: string | null;
   add: (selection: OddSelection) => void;
   remove: (selection: OddSelection) => void;
   clear: () => void;
   setStake: (n: number) => void;
-  confirm: () => string;
+  confirm: () => Promise<string>;
+  clearLastTicket: () => void;
 };
 
 const BetSlipContext = createContext<BetSlipContextValue | null>(null);
@@ -49,8 +52,10 @@ function saveItems(items: BetSlipItem[]) {
 }
 
 export function BetSlipProvider({ children }: { children: ReactNode }) {
+  const { status, send, subscribe } = useWebSocket();
   const [items, setItems] = useState<BetSlipItem[]>(() => loadItems());
   const [stake, setStakeState] = useState<number>(0);
+  const [lastTicketId, setLastTicketId] = useState<string | null>(null);
 
   useEffect(() => {
     saveItems(items);
@@ -73,6 +78,10 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
     setItems([]);
   }, []);
 
+  const clearLastTicket = useCallback(() => {
+    setLastTicketId(null);
+  }, []);
+
   const setStake = useCallback((n: number) => {
     if (!Number.isFinite(n) || n < 0) n = 0;
     setStakeState(n);
@@ -88,17 +97,48 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
   }, [stake, totalOdd]);
 
   const confirm = useCallback(() => {
-    if (items.length === 0 || stake <= 0) {
-      return 'Adicione seleções e informe um valor para confirmar a aposta simulada.';
-    }
-    setItems([]);
-    setStakeState(0);
-    return 'Aposta simulada criada com sucesso.';
-  }, [items.length, stake]);
+    return new Promise<string>((resolve) => {
+      if (items.length === 0 || stake <= 0) {
+        return resolve('Adicione seleções e informe um valor para apostar.');
+      }
+      if (status !== 'open') {
+        return resolve('Sem conexão com o servidor.');
+      }
+
+      const selections = items.map(it => it.selection);
+      
+      const unsub = subscribe((msg) => {
+        if (msg.type === 'BET_PLACED') {
+          if (msg.data?.id) {
+            setLastTicketId(msg.data.id);
+          }
+          setItems([]);
+          setStakeState(0);
+          resolve(msg.message);
+          unsub();
+        } else if (msg.type === 'ERROR') {
+          resolve(msg.message);
+          unsub();
+        }
+      });
+
+      send({
+        type: 'PLACE_BET',
+        amount: stake,
+        selections: selections
+      });
+
+      // Timeout de segurança
+      setTimeout(() => {
+        unsub();
+        resolve('Tempo esgotado ao tentar realizar a aposta.');
+      }, 5000);
+    });
+  }, [items, stake, status, send, subscribe]);
 
   const value = useMemo<BetSlipContextValue>(
-    () => ({ items, stake, totalOdd, potentialReturn, add, remove, clear, setStake, confirm }),
-    [items, stake, totalOdd, potentialReturn, add, remove, clear, setStake, confirm]
+    () => ({ items, stake, totalOdd, potentialReturn, lastTicketId, add, remove, clear, setStake, confirm, clearLastTicket }),
+    [items, stake, totalOdd, potentialReturn, lastTicketId, add, remove, clear, setStake, confirm, clearLastTicket]
   );
 
   return <BetSlipContext.Provider value={value}>{children}</BetSlipContext.Provider>;

@@ -133,6 +133,10 @@ func (s *MatchService) GetTodayMatches(ctx context.Context) ([]CompetitionGroup,
 	return groups, nil
 }
 
+func (s *MatchService) GetDatabase() *db.DB {
+	return s.db
+}
+
 func (s *MatchService) StartPolling(ctx context.Context) {
 	interval := s.cfg.CacheTTL
 	go func() {

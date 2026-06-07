@@ -37,6 +37,8 @@ func main() {
 
 	matchSvc := services.NewMatchService(cfg, httpc, database, hub)
 	oddsSvc := services.NewOddsService(cfg, httpc, oddsCache, hub)
+	userSvc := services.NewUserService(database)
+	bettingSvc := services.NewBettingService(database, oddsSvc)
 
 	ctxPolling, cancelPolling := context.WithCancel(context.Background())
 	defer cancelPolling()
@@ -47,6 +49,8 @@ func main() {
 		Hub:     hub,
 		Matches: matchSvc,
 		Odds:    oddsSvc,
+		Users:   userSvc,
+		Betting: bettingSvc,
 	}
 	wsHandler := websocket.NewHandler(hub, server)
 

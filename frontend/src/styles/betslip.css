@@ -17,191 +17,151 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
 }
 
-/* Modal */
+/* Modal do Bilhete */
 .bet-slip-modal {
   position: relative;
-  width: 90%;
-  max-width: 380px;
+  width: 100%;
+  max-width: 480px;
   background: var(--color-bg-elev);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 75vh;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
-  animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: 85vh;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease-out;
 }
 
-@keyframes modal-pop {
-  from { transform: scale(0.9) translateY(20px); opacity: 0; }
-  to { transform: scale(1) translateY(0); opacity: 1; }
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
-@media (min-width: 768px) {
-  .bet-slip-overlay {
-    align-items: center;
-    padding: var(--space-4);
-  }
-  .bet-slip-modal {
-    max-height: 65vh;
-  }
-}
-
-/* Header */
+/* Cabeçalho */
 .bet-slip__head {
-  padding: var(--space-3);
-  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-4);
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .bet-slip__head-main {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-3);
 }
 
 .bet-slip__title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
 }
 
 .bet-slip__clear-all {
   display: flex;
   align-items: center;
-  gap: var(--space-1);
-  background: none;
-  border: none;
+  gap: 6px;
+  font-size: 0.75rem;
   color: var(--color-text-dim);
-  font-size: 0.8rem;
   font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  transition: color 0.2s;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
 }
 
 .bet-slip__clear-all:hover {
+  background: rgba(217, 83, 79, 0.1);
   color: var(--color-danger);
 }
 
 .bet-slip__close {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: var(--color-text);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  cursor: pointer;
+  font-size: 1.5rem;
+  color: var(--color-text-dim);
+  line-height: 1;
 }
 
-/* Itens */
+/* Área de Scroll */
 .bet-slip__scroll-area {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-3);
+  padding: var(--space-2) 0;
 }
 
+/* Lista de Seleções */
 .bet-slip__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
 .bet-slip__item {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: var(--space-2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .bet-slip__item-content {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 2px;
 }
 
 .bet-slip__item-match {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-weight: 700;
-  color: var(--color-text);
 }
 
 .bet-slip__item-details {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--color-text-dim);
-  display: flex;
-  gap: var(--space-1);
 }
 
 .bet-slip__item-selection {
   color: var(--color-primary-soft);
   font-weight: 600;
+  margin-left: 4px;
 }
 
 .bet-slip__item-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .bet-slip__item-odd {
-  font-size: 0.95rem;
   font-weight: 800;
   color: var(--color-primary-soft);
-  background: rgba(var(--color-primary-rgb), 0.1);
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-sm);
-  min-width: 45px;
-  text-align: center;
 }
 
 .bet-slip__item-remove {
-  background: none;
-  border: none;
   color: var(--color-text-dim);
-  cursor: pointer;
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  transition: all 0.2s;
+  opacity: 0.5;
+  transition: opacity 0.2s;
 }
 
 .bet-slip__item-remove:hover {
-  background: rgba(217, 83, 79, 0.1);
+  opacity: 1;
   color: var(--color-danger);
 }
 
-/* Footer & Stake */
+/* Rodapé de Aposta */
 .bet-slip__footer {
-  padding: var(--space-3);
+  padding: var(--space-4);
   background: rgba(0, 0, 0, 0.2);
   border-top: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .bet-slip__stake-section {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .bet-slip__stake-header {
@@ -211,8 +171,9 @@
 }
 
 .bet-slip__stake-header label {
+  font-size: 0.75rem;
   font-weight: 700;
-  font-size: 0.8rem;
+  text-transform: uppercase;
   color: var(--color-text-dim);
 }
 
@@ -221,7 +182,6 @@
 }
 
 .bet-slip__total-odd-label strong {
-  font-size: 1rem;
   color: var(--color-primary-soft);
 }
 
@@ -233,51 +193,36 @@
 
 .bet-slip__currency-prefix {
   position: absolute;
-  left: var(--space-3);
-  font-weight: 700;
+  left: 12px;
+  font-weight: 800;
   color: var(--color-text-dim);
 }
 
 .bet-slip__input-wrapper input {
-  width: 100%;
-  background: var(--color-bg);
-  border: 2px solid var(--color-border);
-  color: var(--color-text);
-  padding: var(--space-2) var(--space-2) var(--space-2) calc(var(--space-8) + var(--space-1));
-  border-radius: var(--radius-md);
-  font-size: 1.25rem;
+  padding-left: 36px;
+  font-size: 1.1rem;
   font-weight: 800;
-  transition: border-color 0.2s;
-}
-
-.bet-slip__input-wrapper input:focus {
-  outline: none;
-  border-color: var(--color-primary-soft);
+  height: 48px;
 }
 
 .bet-slip__quick-stakes {
-  display: flex;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
 }
 
 .bet-slip__quick-stake-btn {
-  flex: 1;
-  background: var(--color-bg);
+  background: var(--color-surface-2);
   border: 1px solid var(--color-border);
-  color: var(--color-text);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 6px 0;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
   transition: all 0.2s;
 }
 
 .bet-slip__quick-stake-btn:hover {
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary-soft);
-  color: #062013;
+  background: var(--color-border);
 }
 
 .bet-slip__summary-row {
@@ -285,7 +230,7 @@
   justify-content: space-between;
   align-items: center;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .bet-slip__potential-value {
@@ -297,115 +242,288 @@
 .bet-slip__confirm-btn {
   background: var(--color-primary-soft);
   color: #062013;
-  border: none;
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  font-size: 1.1rem;
   font-weight: 900;
+  font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  cursor: pointer;
   transition: transform 0.1s;
 }
 
-.bet-slip__confirm-btn:active {
+.bet-slip__confirm-btn:active:not(:disabled) {
   transform: scale(0.98);
 }
 
-/* Feedback */
+.bet-slip__confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .bet-slip__feedback {
-  padding: var(--space-2);
-  border-radius: var(--radius-sm);
-  background: rgba(217, 83, 79, 0.1);
-  color: var(--color-danger);
-  font-weight: 600;
-  text-align: center;
   font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: var(--color-danger);
+  padding: var(--space-2);
+  border-radius: 4px;
+  background: rgba(217, 83, 79, 0.1);
 }
 
 .bet-slip__feedback--success {
+  color: var(--color-success);
   background: rgba(30, 192, 112, 0.1);
-  color: var(--color-primary-soft);
 }
 
 /* Empty State */
 .bet-slip__empty {
-  padding: var(--space-6) var(--space-4);
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  padding: var(--space-8) var(--space-4);
   text-align: center;
   gap: var(--space-3);
 }
 
 .bet-slip__empty-icon {
-  color: var(--color-text-dim);
-  opacity: 0.3;
+  color: var(--color-border);
+  margin-bottom: var(--space-2);
 }
 
 .bet-slip__empty-title {
-  font-size: 1.2rem;
   font-weight: 800;
-  margin: 0;
+  font-size: 1.1rem;
 }
 
 .bet-slip__empty-desc {
+  font-size: 0.85rem;
   color: var(--color-text-dim);
-  margin: 0;
-  font-size: 0.9rem;
-  max-width: 220px;
+  max-width: 200px;
 }
 
 .bet-slip__back-btn {
-  background: var(--color-primary-soft);
-  color: #062013;
-  border: none;
+  margin-top: var(--space-4);
+  background: var(--color-border);
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
+  font-size: 0.8rem;
   font-weight: 700;
-  cursor: pointer;
 }
 
-/* Trigger */
-.betslip-trigger {
-  position: fixed;
-  right: var(--space-4);
-  bottom: calc(var(--bottom-nav-h) + var(--space-8) + 16px);
-  width: 56px;
-  height: 56px;
-  background: var(--color-bg-elev);
-  color: var(--color-primary-soft);
-  border: 2px solid var(--color-primary-soft);
+/* Recibo de Aposta - Visual de Bilhete Real (Compacto) */
+.bet-slip__receipt {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: #fff; /* Fundo branco papel */
+  color: #111;      /* Texto escuro */
+  position: relative;
+  filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+}
+
+/* Efeito de serra (serrilhado) */
+.bet-slip__receipt::before,
+.bet-slip__receipt::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background-size: 12px 12px;
+  background-repeat: repeat-x;
+}
+
+.bet-slip__receipt::before {
+  top: -6px;
+  background-image: radial-gradient(circle at 6px 9px, transparent 7px, #fff 8px);
+}
+
+.bet-slip__receipt::after {
+  bottom: -6px;
+  background-image: radial-gradient(circle at 6px 3px, transparent 7px, #fff 8px);
+}
+
+.bet-slip__receipt-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 2px dashed #ccc;
+  padding-bottom: var(--space-2);
+}
+
+.bet-slip__receipt-success-icon {
+  width: 28px;
+  height: 28px;
+  background: #1ec070;
+  color: #fff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.bet-slip__receipt-title {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.bet-slip__receipt-id {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.75rem;
+  color: #333;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bet-slip__receipt-date {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.65rem;
+  color: #666;
+  margin: 0;
+}
+
+.bet-slip__receipt-content {
+  padding: 0;
+  background: none;
+}
+
+.bet-slip__receipt-section-title {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: #444;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #eee;
+}
+
+.bet-slip__receipt-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-2) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.bet-slip__receipt-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-bottom: 1px dotted #eee;
+  padding-bottom: 4px;
+}
+
+.bet-slip__receipt-item-match {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.bet-slip__receipt-item-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.65rem;
+  color: #333;
+}
+
+.bet-slip__receipt-item-odd {
+  color: #111;
+  font-weight: 900;
+}
+
+.bet-slip__receipt-summary {
+  border-top: 1.5px solid #111;
+  padding-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bet-slip__receipt-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.bet-slip__receipt-row--total {
+  margin-top: var(--space-1);
+  font-size: 0.9rem;
+  border-top: 1px solid #111;
+  padding-top: 2px;
+  font-weight: 900;
+}
+
+.bet-slip__receipt-close-btn {
+  width: 100%;
+  background: #333;
+  color: #fff;
+  border: none;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 800;
   cursor: pointer;
-  z-index: 900;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+/* Badge flutuante */
+.betslip-trigger {
+  position: fixed !important;
+  bottom: 100px !important; /* Mais alto para não tampar nada */
+  right: 20px !important;
+  width: 60px !important;
+  height: 60px !important;
+  background: var(--color-primary-soft) !important;
+  color: #062013 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
+  z-index: 9999 !important; /* Sempre no topo */
+  transition: transform 0.2s, background-color 0.2s;
+  border: none;
+  cursor: pointer;
 }
 
 .betslip-trigger:hover {
-  transform: scale(1.1) rotate(-5deg);
-  background: var(--color-primary-soft);
-  color: #062013;
+  background: var(--color-primary) !important;
+  color: #fff !important;
+}
+
+.betslip-trigger:active {
+  transform: scale(0.9);
 }
 
 .betslip-trigger__badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  background: var(--color-primary-soft);
-  color: #062013;
-  font-size: 0.75rem;
-  font-weight: 800;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+  top: -2px;
+  right: -2px;
+  background: #fff !important;
+  color: #062013 !important;
+  font-size: 0.8rem;
+  font-weight: 900;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--color-bg-elev);
+  border: 2px solid var(--color-primary-soft);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
