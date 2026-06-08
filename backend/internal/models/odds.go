@@ -132,9 +132,11 @@ func normalizeSingleRoot(raw json.RawMessage) []OddsMarket {
 		}
 
 		sel := selectionFromRaw(e, eventID, mid, mname, home, away)
-		if sel.Price <= 1.0 { // Ignorar odds inválidas ou travadas na fonte
-			continue
-		}
+		// Alteração: Não ignoramos mais odds <= 1.0 na origem, 
+		// enviamos para o frontend poder renderizar o cadeado (locked)
+		// if sel.Price <= 1.0 { 
+		// 	continue
+		// }
 
 		if _, ok := marketMap[mname]; !ok {
 			marketMap[mname] = make([]OddSelection, 0)

@@ -38,9 +38,12 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount floa
 					for _, liveSel := range m.Selections {
 						if liveSel.ID == sel.SelectionID {
 							found = true
+							if liveSel.Price <= 1.0 {
+								return "", fmt.Errorf("a seleção '%s' (%s) foi bloqueada ou suspensa", sel.SelectionName, m.Name)
+							}
 							// Tolerância zero para queda de odd. Se a odd atual for menor, rejeita.
 							if liveSel.Price < sel.Odds {
-								return "", fmt.Errorf("as cotações mudaram (de %.2f para %.2f). por favor, atualize seu bilhete", sel.Odds, liveSel.Price)
+								return "", fmt.Errorf("a cotação para '%s' mudou (de %.2f para %.2f)", sel.SelectionName, sel.Odds, liveSel.Price)
 							}
 							break
 						}
@@ -49,7 +52,7 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount floa
 				}
 			}
 			if !found {
-				return "", errors.New("uma ou mais seleções não estão mais disponíveis")
+				return "", fmt.Errorf("a seleção '%s' não está mais disponível", sel.SelectionName)
 			}
 		}
 

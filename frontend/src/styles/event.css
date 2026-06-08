@@ -351,10 +351,11 @@
 }
 
 .odd-button--locked {
-  opacity: 0.4;
   cursor: not-allowed;
   background: var(--color-bg-elev);
   border-color: transparent;
+  position: relative; /* Necessário para o overlay */
+  overflow: hidden;
 }
 
 .odd-button--locked:hover {
@@ -362,12 +363,25 @@
   background: var(--color-bg-elev);
 }
 
-.odd-button__locked-icon {
+/* Aplica o blur apenas nos textos quando bloqueado */
+.odd-button--locked .odd-button__name,
+.odd-button--locked .odd-button__price {
+  /* Blur removido a pedido do usuário para máxima legibilidade */
+  opacity: 0.9;
+}
+
+.odd-button__locked-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-text-muted);
-  flex: 1;
+  color: #fff; /* Cadeado branco para contraste */
+  background: rgba(0, 0, 0, 0.4); /* Escurecimento sutil apenas no fundo para dar contraste ao cadeado sem esconder o texto */
+  z-index: 2;
 }
 
 .odds-market--overunder .odds-market__grid {

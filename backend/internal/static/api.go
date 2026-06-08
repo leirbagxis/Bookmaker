@@ -26,19 +26,25 @@ func (h *APIHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/bets", h.handleMyBets)
 }
 
+func sendJSONError(w http.ResponseWriter, message string, code int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	json.NewEncoder(w).Encode(map[string]string{"error": message})
+}
+
 func (h *APIHandler) handleLogin(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Username string `json:"username"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		sendJSONError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	u, err := h.Users.Login(r.Context(), body.Username)
 	if err != nil {
 		log.Printf("login error for %s: %v", body.Username, err)
-		http.Error(w, "login failed", http.StatusInternalServerError)
+		sendJSONError(w, "login failed", http.StatusInternalServerError)
 		return
 	}
 
@@ -54,24 +60,24 @@ func (h *APIHandler) handlePlaceBet(w http.ResponseWriter, r *http.Request) {
 		IdempotencyKey string                   `json:"idempotencyKey"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
+		sendJSONError(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	user, err := h.Users.GetUser(body.Username)
 	if err != nil || user == nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		sendJSONError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	if user.Balance < body.Amount {
-		http.Error(w, "saldo insuficiente", http.StatusForbidden)
+		sendJSONError(w, "saldo insuficiente", http.StatusForbidden)
 		return
 	}
 
 	externalID, err := h.Betting.PlaceBet(r.Context(), user.ID, body.Amount, body.Selections, body.IdempotencyKey)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		sendJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 

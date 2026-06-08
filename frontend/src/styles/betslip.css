@@ -502,7 +502,7 @@
   align-items: center !important;
   justify-content: center !important;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6) !important;
-  z-index: 9999 !important; /* Sempre no topo */
+  z-index: 900 !important; /* Abaixo do overlay (1000) */
   transition: transform 0.2s, background-color 0.2s;
   border: none;
   cursor: pointer;
