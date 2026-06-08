@@ -220,6 +220,7 @@ export function EventPage() {
                   markets={filteredMarkets} 
                   homeTeam={match?.homeTeam} 
                   awayTeam={match?.awayTeam} 
+                  startTime={match?.startTime}
                 />
               ) : (
                 <EmptyState
@@ -234,6 +235,7 @@ export function EventPage() {
                   market={m} 
                   homeTeam={match?.homeTeam} 
                   awayTeam={match?.awayTeam} 
+                  startTime={match?.startTime}
                 />
               ))
             ) : (

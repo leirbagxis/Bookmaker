@@ -30,6 +30,7 @@ export function MatchCard({ match }: Props) {
     price,
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
+    startTime: match.startTime,
   });
 
   return (

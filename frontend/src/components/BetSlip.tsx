@@ -123,6 +123,9 @@ export function BetSlip({ show, onClose }: Props) {
                   <div className="bet-slip__receipt-item-match">
                     {it.selection?.homeTeam || 'Time'} vs {it.selection?.awayTeam || 'Time'}
                   </div>
+                  <div className="bet-slip__receipt-item-date">
+                    {new Date(it.selection?.startTime).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </div>
                   <div className="bet-slip__receipt-item-details">
                     <span>{it.selection?.marketName || 'Mercado'}: <strong>{it.selection?.name || ''}</strong></span>
                     <span className="bet-slip__receipt-item-odd">{formatOdd(it.selection?.price)}</span>

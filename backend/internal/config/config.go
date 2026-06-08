@@ -13,6 +13,8 @@ type Config struct {
 	Port           string
 	CacheTTL       time.Duration
 	TimezoneOffset int
+	DatabaseURL    string
+	RedisURL       string
 	SuperScoreBase string
 	SuperbetBase   string
 	BookmakerID    string
@@ -40,6 +42,8 @@ func Load() *Config {
 		Port:           port,
 		CacheTTL:       time.Duration(ttl) * time.Second,
 		TimezoneOffset: offset,
+		DatabaseURL:    getenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/bookmaker?sslmode=disable"),
+		RedisURL:       getenv("REDIS_URL", "redis://localhost:6379"),
 		SuperScoreBase: getenv("SUPER_SCORE_BASE_URL", "https://api.content-prod.superscore.live"),
 		SuperbetBase:   getenv("SUPERBET_BASE_URL", "https://production-superbet-offer-br.freetls.fastly.net"),
 		BookmakerID:    getenv("SUPER_SCORE_BOOKMAKER_ID", "76"),

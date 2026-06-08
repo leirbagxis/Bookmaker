@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"superbet/backend/internal/cache"
 	"superbet/backend/internal/config"
 	"superbet/backend/internal/db"
 	"superbet/backend/internal/httpclient"
@@ -21,14 +23,16 @@ type Broadcaster interface {
 }
 
 type MatchService struct {
-	cfg    *config.Config
-	client *httpclient.Client
-	db     *db.DB
-	hub    Broadcaster
+	cfg          *config.Config
+	client       *httpclient.Client
+	db           *db.DB
+	hub          Broadcaster
+	oddsRedis    *cache.OddsRedis
+	lastBroadcast []byte
 }
 
-func NewMatchService(cfg *config.Config, c *httpclient.Client, database *db.DB, hub Broadcaster) *MatchService {
-	return &MatchService{cfg: cfg, client: c, db: database, hub: hub}
+func NewMatchService(cfg *config.Config, c *httpclient.Client, database *db.DB, hub Broadcaster, oddsRedis *cache.OddsRedis) *MatchService {
+	return &MatchService{cfg: cfg, client: c, db: database, hub: hub, oddsRedis: oddsRedis}
 }
 
 func (s *MatchService) FetchAndSaveMatches(ctx context.Context) error {
@@ -64,65 +68,66 @@ func (s *MatchService) FetchAndSaveMatches(ctx context.Context) error {
 	}
 
 	if len(matches) > 0 {
-		if err := s.db.SaveMatches(matches); err != nil {
-			return err
+		if err := s.oddsRedis.SetManyOdds(ctx, matches); err != nil {
+			log.Printf("aviso: falha ao salvar odds no Redis: %v", err)
 		}
-		s.cleanupDatabase(matches)
+		s.cleanupRedis(ctx, matches)
 	}
 
-	// Broadcast para todos os clientes conectados
 	if s.hub != nil {
 		groups := GroupMatches(filterFinished(matches))
 		data, err := json.Marshal(groups)
-		if err == nil {
+		if err == nil && !bytes.Equal(data, s.lastBroadcast) {
 			s.hub.Broadcast(mustMarshal(models.ServerMessage{
 				Type: "MATCHES_UPDATED",
 				Data: data,
 			}))
+			s.lastBroadcast = data
 		}
 	}
 
 	return nil
 }
 
-// cleanupDatabase remove do banco:
-//  1. Jogos com status finalizado (FT, FINISHED, CANCELLED, POSTPONED).
-//  2. Jogos órfãos (presentes no banco, mas ausentes do fetch de hoje).
-//
-// Só é chamado quando o fetch retornou pelo menos 1 jogo — caso contrário
-// a lista vazia não garante nada e poderíamos deletar tudo por engano.
-func (s *MatchService) cleanupDatabase(fetched []models.Match) {
-	finished, err := s.db.DeleteFinished()
-	if err != nil {
-		log.Printf("aviso: falha ao remover jogos finalizados: %v", err)
-	} else if finished > 0 {
-		log.Printf("limpeza: %d jogo(s) finalizado(s) removido(s) do banco", finished)
+func (s *MatchService) cleanupRedis(ctx context.Context, fetched []models.Match) {
+	fetchedIDs := make(map[int64]bool)
+	for _, m := range fetched {
+		fetchedIDs[m.EventID] = true
 	}
 
-	eventIDs := make([]int64, len(fetched))
-	for i, m := range fetched {
-		eventIDs[i] = m.EventID
-	}
-	orphans, err := s.db.DeleteNotIn(eventIDs)
+	allOdds, err := s.oddsRedis.GetAllOdds(ctx)
 	if err != nil {
-		log.Printf("aviso: falha ao remover jogos órfãos: %v", err)
-	} else if orphans > 0 {
-		log.Printf("limpeza: %d jogo(s) órfão(s) removido(s) do banco", orphans)
+		log.Printf("aviso: falha ao buscar odds do Redis para limpeza: %v", err)
+		return
+	}
+
+	var toDelete []int64
+	for _, odd := range allOdds {
+		if !fetchedIDs[odd.EventID] {
+			toDelete = append(toDelete, odd.EventID)
+		}
+	}
+
+	if len(toDelete) > 0 {
+		if err := s.oddsRedis.DeleteManyOdds(ctx, toDelete); err != nil {
+			log.Printf("aviso: falha ao remover odds órfãs do Redis: %v", err)
+		} else {
+			log.Printf("limpeza: %d odds órfã(s) removida(s) do Redis", len(toDelete))
+		}
 	}
 }
 
 func (s *MatchService) GetTodayMatches(ctx context.Context) ([]CompetitionGroup, error) {
-	matches, err := s.db.GetMatches()
+	matches, err := s.oddsRedis.GetAllOdds(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(matches) == 0 {
-		err = s.FetchAndSaveMatches(ctx)
-		if err != nil {
+		if err = s.FetchAndSaveMatches(ctx); err != nil {
 			return nil, err
 		}
-		matches, err = s.db.GetMatches()
+		matches, err = s.oddsRedis.GetAllOdds(ctx)
 		if err != nil {
 			return nil, err
 		}

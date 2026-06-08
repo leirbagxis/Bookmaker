@@ -431,6 +431,13 @@
   text-transform: uppercase;
 }
 
+.bet-slip__receipt-item-date {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.6rem;
+  color: #666;
+  margin-bottom: 2px;
+}
+
 .bet-slip__receipt-item-details {
   display: flex;
   justify-content: space-between;

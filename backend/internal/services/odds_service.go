@@ -21,14 +21,15 @@ type OddsBroadcaster interface {
 }
 
 type OddsService struct {
-	cfg    *config.Config
-	client *httpclient.Client
-	cache  *cache.Cache[int64, []models.OddsMarket]
-	hub    OddsBroadcaster
+	cfg       *config.Config
+	client    *httpclient.Client
+	cache     *cache.Cache[int64, []models.OddsMarket]
+	hub       OddsBroadcaster
+	oddsRedis *cache.OddsRedis
 }
 
-func NewOddsService(cfg *config.Config, c *httpclient.Client, cc *cache.Cache[int64, []models.OddsMarket], hub OddsBroadcaster) *OddsService {
-	return &OddsService{cfg: cfg, client: c, cache: cc, hub: hub}
+func NewOddsService(cfg *config.Config, c *httpclient.Client, cc *cache.Cache[int64, []models.OddsMarket], hub OddsBroadcaster, oddsRedis *cache.OddsRedis) *OddsService {
+	return &OddsService{cfg: cfg, client: c, cache: cc, hub: hub, oddsRedis: oddsRedis}
 }
 
 // GetEventOdds retorna odds do cache, ou busca da API externa se cache expirou.

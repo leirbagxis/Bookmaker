@@ -25,25 +25,35 @@ func main() {
 
 	httpc := httpclient.New(10 * time.Second)
 
-	database, err := db.New("superbet.db")
+	database, err := db.NewPostgresWrapper(cfg.DatabaseURL)
 	if err != nil {
-		log.Fatalf("erro ao inicializar banco de dados: %v", err)
+		log.Fatalf("erro ao inicializar PostgreSQL: %v", err)
 	}
 	defer database.Close()
 
-	oddsCache := cache.New[int64, []models.OddsMarket](cfg.CacheTTL)
+	redisClient, err := cache.NewRedis(cfg.RedisURL)
+	if err != nil {
+		log.Fatalf("erro ao inicializar Redis: %v", err)
+	}
+	defer redisClient.Close()
+
+	oddsCache := cache.NewOddsRedis(redisClient, cfg.CacheTTL)
+
+	oddsInMemory := cache.New[int64, []models.OddsMarket](cfg.CacheTTL)
 
 	hub := websocket.NewHub()
 
-	matchSvc := services.NewMatchService(cfg, httpc, database, hub)
-	oddsSvc := services.NewOddsService(cfg, httpc, oddsCache, hub)
+	matchSvc := services.NewMatchService(cfg, httpc, database, hub, oddsCache)
+	oddsSvc := services.NewOddsService(cfg, httpc, oddsInMemory, hub, oddsCache)
 	userSvc := services.NewUserService(database)
 	bettingSvc := services.NewBettingService(database, oddsSvc)
+	settlementSvc := services.NewSettlementService(cfg, httpc, database)
 
 	ctxPolling, cancelPolling := context.WithCancel(context.Background())
 	defer cancelPolling()
 	matchSvc.StartPolling(ctxPolling)
 	oddsSvc.StartEventPolling(ctxPolling)
+	settlementSvc.StartPolling(ctxPolling)
 
 	server := &websocket.Server{
 		Hub:     hub,
@@ -54,7 +64,10 @@ func main() {
 	}
 	wsHandler := websocket.NewHandler(hub, server)
 
+	apiHandler := static.NewAPIHandler(userSvc, bettingSvc, hub)
+
 	mux := http.NewServeMux()
+	apiHandler.RegisterRoutes(mux)
 	mux.Handle("/ws", wsHandler)
 
 	staticDir := cfg.StaticDir

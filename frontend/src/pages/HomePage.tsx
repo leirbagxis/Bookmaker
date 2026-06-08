@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useWebSocket } from '../context/WebSocketContext';
+import { useMatches } from '../context/MatchesContext';
 import { SearchBar } from '../components/SearchBar';
 import { CompetitionSection } from '../components/CompetitionSection';
 import { LoadingState } from '../components/LoadingState';
 import { ErrorState } from '../components/ErrorState';
 import { EmptyState } from '../components/EmptyState';
 import { LastUpdated } from '../components/LastUpdated';
-import type { CompetitionGroup } from '../types/match';
 
 const TABS = ['Todos', 'Ao vivo', 'Próximos'] as const;
 type Tab = (typeof TABS)[number];
@@ -23,27 +23,9 @@ function isUpcoming(m: { status?: string; startTime: string }): boolean {
 }
 
 export function HomePage() {
-  const { status, send, subscribe } = useWebSocket();
+  const { groups, isLoading, error, lastUpdated, refresh } = useMatches();
   const [tab, setTab] = useState<Tab>('Todos');
-  const [groups, setGroups] = useState<CompetitionGroup[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (status !== 'open') return;
-    const unsub = subscribe((msg) => {
-      if (msg.type === 'TODAY_MATCHES' || msg.type === 'MATCHES_UPDATED') {
-        setGroups(msg.data as CompetitionGroup[]);
-        setError(null);
-        setLastUpdated(Date.now());
-      } else if (msg.type === 'ERROR') {
-        setError(msg.message);
-      }
-    });
-    send({ type: 'GET_TODAY_MATCHES' });
-    return unsub;
-  }, [status, send, subscribe]);
 
   const filteredGroups = useMemo(() => {
     if (!groups) return null;
@@ -67,8 +49,7 @@ export function HomePage() {
   const totalMatches = filteredGroups?.reduce((acc, g) => acc + g.matches.length, 0) ?? 0;
 
   const requestRefresh = () => {
-    setError(null);
-    send({ type: 'GET_TODAY_MATCHES' });
+    refresh();
   };
 
   return (

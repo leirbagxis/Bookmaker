@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"superbet/backend/internal/db"
 	"superbet/backend/internal/models"
@@ -17,7 +18,7 @@ func NewBettingService(database *db.DB, oddsService *OddsService) *BettingServic
 	return &BettingService{db: database, odds: oddsService}
 }
 
-func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount float64, selections []models.TicketSelection) (string, error) {
+func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount float64, selections []models.TicketSelection, idempotencyKey string) (string, error) {
 	if amount <= 0 {
 		return "", errors.New("valor da aposta deve ser maior que zero")
 	}
@@ -27,11 +28,36 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount floa
 		if sel.Odds <= 1.0 {
 			return "", errors.New("uma ou mais seleções possuem odds inválidas")
 		}
+
+		// Validação de Odds Alteradas (Odds Change Lock)
+		liveMarkets, err := s.odds.GetEventOdds(ctx, sel.EventID)
+		if err == nil && len(liveMarkets) > 0 {
+			found := false
+			for _, m := range liveMarkets {
+				if m.ID == sel.MarketID {
+					for _, liveSel := range m.Selections {
+						if liveSel.ID == sel.SelectionID {
+							found = true
+							// Tolerância zero para queda de odd. Se a odd atual for menor, rejeita.
+							if liveSel.Price < sel.Odds {
+								return "", fmt.Errorf("as cotações mudaram (de %.2f para %.2f). por favor, atualize seu bilhete", sel.Odds, liveSel.Price)
+							}
+							break
+						}
+					}
+					break
+				}
+			}
+			if !found {
+				return "", errors.New("uma ou mais seleções não estão mais disponíveis")
+			}
+		}
+
 		totalOdds *= sel.Odds
 	}
 	possibleWin := amount * totalOdds
 
-	externalID, err := s.db.SaveTicket(userID, amount, totalOdds, possibleWin, selections)
+	externalID, err := s.db.SaveTicket(ctx, userID, amount, totalOdds, possibleWin, selections, idempotencyKey)
 	if err != nil {
 		log.Printf("ERRO CRÍTICO AO SALVAR TICKET: %v", err)
 		// Se falhou o UpdateUserBalance por causa do CHECK(balance >= 0), err terá essa info
@@ -39,4 +65,8 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount floa
 	}
 
 	return externalID, nil
+}
+
+func (s *BettingService) GetDatabase() *db.DB {
+	return s.db
 }

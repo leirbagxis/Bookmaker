@@ -5,9 +5,10 @@ import "time"
 type TicketStatus string
 
 const (
-	TicketStatusPending TicketStatus = "PENDING"
-	TicketStatusWon     TicketStatus = "WON"
-	TicketStatusLost    TicketStatus = "LOST"
+	TicketStatusPending  TicketStatus = "PENDING"
+	TicketStatusWon      TicketStatus = "WON"
+	TicketStatusLost     TicketStatus = "LOST"
+	TicketStatusVoid     TicketStatus = "VOID"
 	TicketStatusCanceled TicketStatus = "CANCELED"
 )
 
@@ -29,6 +30,7 @@ type TicketSelection struct {
 	EventID       int64        `json:"eventId"`
 	HomeTeam      string       `json:"homeTeam"`
 	AwayTeam      string       `json:"awayTeam"`
+	StartTime     string       `json:"startTime"` // Data/hora do jogo
 	MarketID      string       `json:"marketId"`
 	MarketName    string       `json:"marketName"`
 	SelectionID   string       `json:"id"` // O frontend manda o ID da seleção (ex: "h", "a", "123") como 'id'

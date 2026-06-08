@@ -7,6 +7,7 @@ export type OddSelection = {
   price: number;
   homeTeam?: string;
   awayTeam?: string;
+  startTime?: string;
 };
 
 export type OddsMarket = {

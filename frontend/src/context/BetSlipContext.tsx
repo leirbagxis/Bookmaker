@@ -52,7 +52,7 @@ function saveItems(items: BetSlipItem[]) {
 }
 
 export function BetSlipProvider({ children }: { children: ReactNode }) {
-  const { status, send, subscribe } = useWebSocket();
+  const { status } = useWebSocket();
   const [items, setItems] = useState<BetSlipItem[]>(() => loadItems());
   const [stake, setStakeState] = useState<number>(0);
   const [lastTicketId, setLastTicketId] = useState<string | null>(null);
@@ -96,45 +96,45 @@ export function BetSlipProvider({ children }: { children: ReactNode }) {
     return stake * totalOdd;
   }, [stake, totalOdd]);
 
-  const confirm = useCallback(() => {
-    return new Promise<string>((resolve) => {
-      if (items.length === 0 || stake <= 0) {
-        return resolve('Adicione seleções e informe um valor para apostar.');
-      }
-      if (status !== 'open') {
-        return resolve('Sem conexão com o servidor.');
-      }
+  // MIGRAÇÃO REST: Colocar aposta agora via POST /api/bets
+  const confirm = useCallback(async () => {
+    if (items.length === 0 || stake <= 0) {
+      return 'Adicione seleções e informe um valor para apostar.';
+    }
 
-      const selections = items.map(it => it.selection);
-      
-      const unsub = subscribe((msg) => {
-        if (msg.type === 'BET_PLACED') {
-          if (msg.data?.id) {
-            setLastTicketId(msg.data.id);
-          }
-          setItems([]);
-          setStakeState(0);
-          resolve(msg.message);
-          unsub();
-        } else if (msg.type === 'ERROR') {
-          resolve(msg.message);
-          unsub();
+    const selections = items.map(it => it.selection);
+    const idempotencyKey = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+    
+    try {
+      const resp = await fetch('/api/bets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: 'usuario_demo',
+          amount: stake,
+          selections: selections,
+          idempotencyKey: idempotencyKey
+        })
+      });
+
+      const data = await resp.json();
+
+      if (resp.ok) {
+        if (data.id) {
+          setLastTicketId(data.id);
         }
-      });
-
-      send({
-        type: 'PLACE_BET',
-        amount: stake,
-        selections: selections
-      });
-
-      // Timeout de segurança
-      setTimeout(() => {
-        unsub();
-        resolve('Tempo esgotado ao tentar realizar a aposta.');
-      }, 5000);
-    });
-  }, [items, stake, status, send, subscribe]);
+        setItems([]);
+        setStakeState(0);
+        return data.message || 'Aposta realizada com sucesso!';
+      } else {
+        // Tratar erro retornado pela API
+        return data.error || data.message || 'Erro ao processar aposta.';
+      }
+    } catch (err) {
+      console.error('Bet API error:', err);
+      return 'Falha na conexão com o servidor de apostas.';
+    }
+  }, [items, stake]);
 
   const value = useMemo<BetSlipContextValue>(
     () => ({ items, stake, totalOdd, potentialReturn, lastTicketId, add, remove, clear, setStake, confirm, clearLastTicket }),

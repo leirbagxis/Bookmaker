@@ -119,6 +119,7 @@ export function MyBetsPage() {
                     <li key={sIdx} className="ticket-card__selection">
                       <div className="ticket-card__selection-main">
                         <div className="ticket-card__selection-match">{sel.homeTeam || 'Time'} vs {sel.awayTeam || 'Time'}</div>
+                        <div className="ticket-card__selection-date">{formatFullDate(sel.startTime)}</div>
                         <span className="ticket-card__selection-market">{sel.marketName || 'Mercado'}</span>
                         <span className="ticket-card__selection-name">{sel.name || 'Seleção'}</span>
                       </div>
@@ -174,6 +175,7 @@ export function MyBetsPage() {
                   {(sharingTicket.selections || []).map((sel: any, idx: number) => (
                     <li key={idx} className="bet-slip__receipt-item">
                       <div className="bet-slip__receipt-item-match">{sel.homeTeam} vs {sel.awayTeam}</div>
+                      <div className="bet-slip__receipt-item-date">{formatFullDate(sel.startTime)}</div>
                       <div className="bet-slip__receipt-item-details">
                         <span>{sel.marketName}: <strong>{sel.name}</strong></span>
                         <span className="bet-slip__receipt-item-odd">{(sel.price || sel.odds || 0).toFixed(2)}</span>
