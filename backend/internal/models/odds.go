@@ -10,38 +10,7 @@ type RawEventOdds struct {
 	EventID int64           `json:"eventId"`
 	ID      int64           `json:"id"`
 	Event   json.RawMessage `json:"event"`
-	Odds    json.RawMessage `json:"odds"`
-	Markets json.RawMessage `json:"markets"`
-	Groups  json.RawMessage `json:"groups"`
-}
-
-type OddsMarket struct {
-	ID         string         `json:"id"`
-	Name       string         `json:"name"`
-	Selections []OddSelection `json:"selections"`
-}
-
-type OddSelection struct {
-	ID         string  `json:"id"`
-	EventID    int64   `json:"eventId"`
-	MarketID   string  `json:"marketId"`
-	MarketName string  `json:"marketName"`
-	Name       string  `json:"name"`
-	Price      float64 `json:"price"`
-	HomeTeam   string  `json:"homeTeam,omitempty"`
-	AwayTeam   string  `json:"awayTeam,omitempty"`
-}
-
-type rawOddsEntry struct {
-	Price      float64         `json:"price"`
-	Name       string          `json:"name"`
-	OutcomeID  int64           `json:"outcomeId"`
-	UUID       string          `json:"uuid"`
-	EventID    int64           `json:"eventId"`
-	ID         int64           `json:"id"`
-	Market     json.RawMessage `json:"market"`
-	MarketID   interface{}     `json:"marketId"`
-	MarketName string          `json:"marketName"`
+	Markets []rawMarket     `json:"markets"`
 }
 
 type rawMarket struct {
@@ -54,14 +23,36 @@ type rawMarket struct {
 	Selections []rawOddsEntry  `json:"selections"`
 }
 
-type rawEventEnvelope struct {
-	Home         json.RawMessage `json:"home"`
-	Away         json.RawMessage `json:"away"`
-	HomeTeam     json.RawMessage `json:"home_team"`
-	AwayTeam     json.RawMessage `json:"away_team"`
-	HomeTeamName string          `json:"homeTeamName"`
-	AwayTeamName string          `json:"awayTeamName"`
-	MatchName    string          `json:"matchName"`
+type rawOddsEntry struct {
+	ID          int64   `json:"id"`
+	UUID        string  `json:"uuid"`
+	OutcomeID   int64   `json:"outcomeId"`
+	MarketID    int64   `json:"marketId"`
+	Name        string  `json:"name"`
+	Price       float64 `json:"price"`
+	MarketName  string  `json:"marketName"`
+	EventID     int64   `json:"eventId"`
+	Status      string  `json:"status"`
+	SpecialBetV string  `json:"specialBetValue"`
+}
+
+type OddsMarket struct {
+	ID         string         `json:"id"`
+	Name       string         `json:"name"`
+	Selections []OddSelection `json:"selections"`
+}
+
+type OddSelection struct {
+	ID            string       `json:"id"`
+	EventID       int64        `json:"eventId"`
+	HomeTeam      string       `json:"homeTeam"`
+	AwayTeam      string       `json:"awayTeam"`
+	StartTime     string       `json:"startTime"`
+	MarketID      string       `json:"marketId"`
+	MarketName    string       `json:"marketName"`
+	Name          string       `json:"name"`
+	Price         float64      `json:"price"`
+	Status        TicketStatus `json:"status"`
 }
 
 func NormalizeEventOdds(raw json.RawMessage) []OddsMarket {
@@ -69,14 +60,13 @@ func NormalizeEventOdds(raw json.RawMessage) []OddsMarket {
 		return nil
 	}
 
-	// Tenta desempacotar se estiver no formato { "data": [...] } ou { "data": { ... } }
+	// 1. Tentar desempacotar formato { "data": [...] }
 	var wrapped struct {
 		Data json.RawMessage `json:"data"`
 	}
 	if err := json.Unmarshal(raw, &wrapped); err == nil && len(wrapped.Data) > 0 {
 		var arr []json.RawMessage
 		if err := json.Unmarshal(wrapped.Data, &arr); err == nil && len(arr) > 0 {
-			// Se for um array, pegamos o primeiro que tiver odds válidas
 			for _, item := range arr {
 				m := normalizeSingleRoot(item)
 				if len(m) > 0 {
@@ -106,296 +96,139 @@ func normalizeSingleRoot(raw json.RawMessage) []OddsMarket {
 
 	home, away := extractEventTeams(raw)
 
-	// POOL ÚNICO: Coletar todas as odds de todos os lugares possíveis para evitar repetição
+	// Tentar coletar TODAS as entradas de odds de todas as fontes possíveis no JSON
 	allEntries := collectAllRawEntries(envelope, raw)
-	
-	if len(allEntries) == 0 {
-		return nil
+	if len(allEntries) > 0 {
+		return groupByMarket(allEntries, eventID, home, away)
 	}
 
-	// Agrupar por marketName e remover duplicatas
+	return nil
+}
+
+// groupByMarket é o coração da normalização. Garante que IDs sejam consistentes.
+func groupByMarket(entries []rawOddsEntry, eventID int64, home, away string) []OddsMarket {
 	marketMap := make(map[string][]OddSelection)
 	marketOrder := make([]string, 0)
-	
 	// Para cada marketName, manteremos um set de nomes de seleções para evitar duplicatas internas
 	selectionSeen := make(map[string]map[string]bool)
 
-	for _, e := range allEntries {
+	for _, e := range entries {
 		mname := e.MarketName
 		if mname == "" {
 			mname = "Mercado Principal"
 		}
 		
+		// GERAÇÃO DE MARKET ID CONSISTENTE
 		mid := fmt.Sprintf("%v", e.MarketID)
-		if mid == "" || mid == "<nil>" {
+		if mid == "" || mid == "0" || mid == "<nil>" {
+			// Fallback determinístico baseado no nome
 			mid = strings.ToLower(strings.ReplaceAll(mname, " ", "_"))
 		}
 
 		sel := selectionFromRaw(e, eventID, mid, mname, home, away)
-		// Alteração: Não ignoramos mais odds <= 1.0 na origem, 
-		// enviamos para o frontend poder renderizar o cadeado (locked)
-		// if sel.Price <= 1.0 { 
-		// 	continue
-		// }
-
+		
 		if _, ok := marketMap[mname]; !ok {
 			marketMap[mname] = make([]OddSelection, 0)
 			marketOrder = append(marketOrder, mname)
 			selectionSeen[mname] = make(map[string]bool)
 		}
 
-		// Chave de unicidade da seleção dentro do mercado: nome
 		selKey := sel.Name
 		if !selectionSeen[mname][selKey] {
+			// Sincroniza o MarketID da seleção com o do grupo
+			sel.MarketID = mid
 			marketMap[mname] = append(marketMap[mname], sel)
 			selectionSeen[mname][selKey] = true
 		}
 	}
 
 	out := make([]OddsMarket, 0, len(marketOrder))
-	for _, name := range marketOrder {
-		selections := marketMap[name]
-		if len(selections) > 0 {
-			out = append(out, OddsMarket{
-				ID:         strings.ToLower(strings.ReplaceAll(name, " ", "_")),
-				Name:       name,
-				Selections: selections,
-			})
-		}
-	}
-
-	return out
-}
-
-func collectAllRawEntries(env RawEventOdds, raw json.RawMessage) []rawOddsEntry {
-	var entries []rawOddsEntry
-
-	// 1. Tentar do campo .Odds (que costuma ser a lista flat correta)
-	if len(env.Odds) > 0 {
-		var list []rawOddsEntry
-		if err := json.Unmarshal(env.Odds, &list); err == nil && len(list) > 0 {
-			entries = append(entries, list...)
-		} else {
-			var markets []rawMarket
-			if err := json.Unmarshal(env.Odds, &markets); err == nil {
-				for _, m := range markets {
-					entries = append(entries, extractEntriesFromMarket(m)...)
-				}
-			}
-		}
-	}
-
-	// 2. Se ainda estiver vazio, tentar de .Markets
-	if len(entries) == 0 && len(env.Markets) > 0 {
-		var markets []rawMarket
-		if err := json.Unmarshal(env.Markets, &markets); err == nil {
-			for _, m := range markets {
-				entries = append(entries, extractEntriesFromMarket(m)...)
-			}
-		}
-	}
-
-	// 3. Fallback: tentar o root como lista de mercados
-	if len(entries) == 0 {
-		var rootMarkets []rawMarket
-		if err := json.Unmarshal(raw, &rootMarkets); err == nil {
-			for _, m := range rootMarkets {
-				entries = append(entries, extractEntriesFromMarket(m)...)
-			}
-		}
-	}
-
-	return entries
-}
-
-func extractEntriesFromMarket(m rawMarket) []rawOddsEntry {
-	var out []rawOddsEntry
-	list := append(append([]rawOddsEntry{}, m.Odds...), m.Outcomes...)
-	list = append(list, m.Selections...)
-	
-	for _, e := range list {
-		if e.MarketName == "" {
-			e.MarketName = m.Name
-			if e.MarketName == "" {
-				e.MarketName = m.Title
-			}
-		}
-		if e.MarketID == nil {
-			e.MarketID = m.ID
-		}
-		out = append(out, e)
+	for _, mname := range marketOrder {
+		if len(marketMap[mname]) == 0 { continue }
+		
+		out = append(out, OddsMarket{
+			ID:         marketMap[mname][0].MarketID,
+			Name:       mname,
+			Selections: marketMap[mname],
+		})
 	}
 	return out
 }
 
-func collectMarkets(env RawEventOdds) []OddsMarket {
-	var out []OddsMarket
-	eventID := env.EventID
-	if eventID == 0 {
-		eventID = env.ID
-	}
-	home, away := extractEventTeamsFromEnvelope(env)
+func collectAllRawEntries(envelope RawEventOdds, raw json.RawMessage) []rawOddsEntry {
+	var all []rawOddsEntry
 
-	addFromArray := func(arr []rawMarket) {
-		for _, m := range arr {
-			mk := marketFromRaw(m, eventID, home, away)
-			if len(mk.Selections) > 0 {
-				out = append(out, mk)
+	// 1. Do array principal "odds"
+	var root struct {
+		Odds []rawOddsEntry `json:"odds"`
+	}
+	if err := json.Unmarshal(raw, &root); err == nil {
+		all = append(all, root.Odds...)
+	}
+
+	// 2. De dentro dos "markets"
+	for _, m := range envelope.Markets {
+		entries := append(append([]rawOddsEntry{}, m.Odds...), m.Outcomes...)
+		entries = append(entries, m.Selections...)
+		
+		// Injeta os dados do market pai nas entradas APENAS se estiverem vazios
+		mID, _ := parseID(m.ID)
+		parentMName := m.Name
+		if parentMName == "" {
+			parentMName = m.Title
+		}
+
+		for i := range entries {
+			if entries[i].MarketID == 0 {
+				entries[i].MarketID = int64(mID)
+			}
+			// CORREÇÃO: Não sobrescrever se a entrada já tiver um nome de mercado específico
+			if entries[i].MarketName == "" {
+				entries[i].MarketName = parentMName
 			}
 		}
+		all = append(all, entries...)
 	}
 
-	if len(env.Markets) > 0 {
-		var arr []rawMarket
-		if err := json.Unmarshal(env.Markets, &arr); err == nil {
-			addFromArray(arr)
-		}
-		var single rawMarket
-		if err := json.Unmarshal(env.Markets, &single); err == nil && (single.ID != "" || single.Name != "") {
-			mk := marketFromRaw(single, eventID, home, away)
-			if len(mk.Selections) > 0 {
-				out = append(out, mk)
-			}
-		}
-	}
-
-	if len(env.Groups) > 0 {
-		var groups []struct {
-			Name    string      `json:"name"`
-			ID      string      `json:"id"`
-			Markets []rawMarket `json:"markets"`
-		}
-		_ = json.Unmarshal(env.Groups, &groups)
-		for _, g := range groups {
-			for _, m := range g.Markets {
-				mk := marketFromRaw(m, eventID, home, away)
-				if mk.Name == "" {
-					mk.Name = g.Name
-				}
-				if len(mk.Selections) > 0 {
-					out = append(out, mk)
-				}
-			}
-		}
-	}
-
-	if len(env.Odds) > 0 {
-		var arr []rawMarket
-		if err := json.Unmarshal(env.Odds, &arr); err == nil {
-			addFromArray(arr)
-		} else {
-			// Fallback: agrupar por marketName se for uma lista direta de odds
-			var entries []rawOddsEntry
-			if err := json.Unmarshal(env.Odds, &entries); err == nil && len(entries) > 0 {
-				marketGroups := make(map[string][]OddSelection)
-				marketNames := make(map[string]string)
-				
-				for _, e := range entries {
-					mname := e.MarketName
-					if mname == "" {
-						mname = "Mercado Principal"
-					}
-					mid := fmt.Sprintf("%v", e.MarketID)
-					if mid == "" || mid == "<nil>" {
-						mid = strings.ToLower(strings.ReplaceAll(mname, " ", "_"))
-					}
-					
-					sel := selectionFromRaw(e, eventID, mid, mname, home, away)
-					if sel.Price > 0 {
-						marketGroups[mid] = append(marketGroups[mid], sel)
-						marketNames[mid] = mname
-					}
-				}
-				
-				for mid, selections := range marketGroups {
-					out = append(out, OddsMarket{
-						ID:         mid,
-						Name:       marketNames[mid],
-						Selections: selections,
-					})
-				}
-			}
-		}
-	}
-
-	return out
-}
-
-func marketFromRaw(m rawMarket, eventID int64, home, away string) OddsMarket {
-	name := m.Name
-	if name == "" {
-		name = m.Title
-	}
-	if name == "" {
-		name = m.Type
-	}
-
-	entries := append(append([]rawOddsEntry{}, m.Odds...), m.Outcomes...)
-	entries = append(entries, m.Selections...)
-
-	// Se ainda estiver sem nome, tenta pegar das seleções
-	if name == "" && len(entries) > 0 {
-		for _, e := range entries {
-			if e.MarketName != "" {
-				name = e.MarketName
-				break
-			}
-		}
-	}
-
-	id := fmt.Sprintf("%v", m.ID)
-	if id == "" || id == "<nil>" {
-		id = strings.ToLower(strings.ReplaceAll(name, " ", "_"))
-	}
-
-	selections := make([]OddSelection, 0, len(entries))
-	seen := make(map[string]bool)
-	for _, e := range entries {
-		sel := selectionFromRaw(e, eventID, id, name, home, away)
-		if sel.Price <= 0 {
-			continue
-		}
-		key := sel.ID
-		if key == "" {
-			key = fmt.Sprintf("%s|%s|%.4f", id, sel.Name, sel.Price)
-		}
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		selections = append(selections, sel)
-	}
-
-	return OddsMarket{
-		ID:         id,
-		Name:       name,
-		Selections: selections,
-	}
+	return all
 }
 
 func selectionFromRaw(e rawOddsEntry, eventID int64, marketID, marketName, home, away string) OddSelection {
 	if e.EventID != 0 && eventID == 0 {
 		eventID = e.EventID
 	}
+	
+	// GERAÇÃO DE SELECTION ID CONSISTENTE
 	id := e.UUID
 	if id == "" {
-		id = fmt.Sprintf("%d", e.OutcomeID)
-		if id == "0" {
+		if e.OutcomeID != 0 {
+			id = fmt.Sprintf("%d", e.OutcomeID)
+		} else if e.ID != 0 {
 			id = fmt.Sprintf("%d", e.ID)
+		} else {
+			// Fallback extremo
+			id = strings.ToLower(strings.ReplaceAll(e.Name, " ", "_"))
 		}
 	}
-	mid := fmt.Sprintf("%v", e.MarketID)
-	if mid == "" || mid == "<nil>" {
-		mid = marketID
+
+	mname := marketName
+	if e.MarketName != "" {
+		mname = e.MarketName
 	}
-	mname := e.MarketName
-	if mname == "" {
-		mname = marketName
+	
+	// Fallback inteligente para quando o nome do mercado some (comum em V2)
+	if mname == "" || mname == "Mercado Principal" {
+		if strings.Contains(strings.ToLower(e.Name), "escanteio") || strings.Contains(strings.ToLower(e.Name), "corner") {
+			mname = "Total de Escanteios"
+		} else if strings.Contains(strings.ToLower(e.Name), "cartao") || strings.Contains(strings.ToLower(e.Name), "cartão") {
+			mname = "Total de Cartões"
+		}
 	}
+
 	return OddSelection{
 		ID:         id,
 		EventID:    eventID,
-		MarketID:   mid,
+		MarketID:   marketID,
 		MarketName: mname,
 		Name:       e.Name,
 		Price:      e.Price,
@@ -404,55 +237,56 @@ func selectionFromRaw(e rawOddsEntry, eventID int64, marketID, marketName, home,
 	}
 }
 
-func extractEventTeamsFromEnvelope(env RawEventOdds) (string, string) {
-	if len(env.Event) > 0 {
-		return extractEventTeams(env.Event)
+func extractEventTeams(raw json.RawMessage) (string, string) {
+	var env struct {
+		Event struct {
+			HomeTeam string `json:"homeTeamName"`
+			AwayTeam string `json:"awayTeamName"`
+			Match    string `json:"matchName"`
+		} `json:"event"`
+		MatchName string `json:"matchName"`
+		HomeTeam  string `json:"homeTeamName"`
+		AwayTeam  string `json:"awayTeamName"`
+	}
+
+	if err := json.Unmarshal(raw, &env); err == nil {
+		home := env.Event.HomeTeam
+		if home == "" { home = env.HomeTeam }
+		
+		away := env.Event.AwayTeam
+		if away == "" { away = env.AwayTeam }
+
+		if home != "" && away != "" {
+			return home, away
+		}
+
+		mName := env.Event.Match
+		if mName == "" { mName = env.MatchName }
+
+		if mName != "" {
+			parts := strings.Split(mName, "·")
+			if len(parts) == 0 { parts = strings.Split(mName, " - ") }
+			if len(parts) >= 2 {
+				return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+			}
+		}
 	}
 	return "", ""
 }
 
-func extractEventTeams(raw json.RawMessage) (string, string) {
-	var env rawEventEnvelope
-	if err := json.Unmarshal(raw, &env); err != nil {
-		return "", ""
-	}
-	home := env.HomeTeamName
-	if home == "" {
-		home = extractTeamName(env.Home)
-	}
-	if home == "" {
-		home = extractTeamName(env.HomeTeam)
-	}
-
-	away := env.AwayTeamName
-	if away == "" {
-		away = extractTeamName(env.Away)
-	}
-	if away == "" {
-		away = extractTeamName(env.AwayTeam)
-	}
-
-	if (home == "" || away == "") && env.MatchName != "" {
-		parts := strings.Split(env.MatchName, " vs ")
-		if len(parts) == 2 {
-			if home == "" {
-				home = strings.TrimSpace(parts[0])
-			}
-			if away == "" {
-				away = strings.TrimSpace(parts[1])
-			}
-		} else {
-			parts = strings.Split(env.MatchName, " - ")
-			if len(parts) == 2 {
-				if home == "" {
-					home = strings.TrimSpace(parts[0])
-				}
-				if away == "" {
-					away = strings.TrimSpace(parts[1])
-				}
-			}
+func parseID(val interface{}) (int, bool) {
+	switch x := val.(type) {
+	case float64:
+		return int(x), true
+	case int:
+		return x, true
+	case int64:
+		return int(x), true
+	case string:
+		var n int
+		if _, err := fmt.Sscanf(x, "%d", &n); err == nil {
+			return n, true
 		}
 	}
-
-	return home, away
+	return 0, false
 }

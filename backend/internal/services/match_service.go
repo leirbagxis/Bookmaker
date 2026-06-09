@@ -36,7 +36,8 @@ func NewMatchService(cfg *config.Config, c *httpclient.Client, database *db.DB, 
 }
 
 func (s *MatchService) FetchAndSaveMatches(ctx context.Context) error {
-	key := time.Now().Format("2006-01-02")
+	loc := time.FixedZone("BRT", s.cfg.TimezoneOffset*3600)
+	key := time.Now().In(loc).Format("2006-01-02")
 	url := fmt.Sprintf(
 		"%s/v2/public/stats/events/by-date/%s?language=%s&sport_id=%s&date=%s&timezone_offset=%d",
 		s.cfg.SuperScoreBase,

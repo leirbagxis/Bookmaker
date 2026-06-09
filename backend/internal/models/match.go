@@ -262,21 +262,44 @@ func parseScores(raw json.RawMessage) []int {
 	if len(raw) == 0 || string(raw) == "null" {
 		return nil
 	}
-	// Tentativa 1: array de objetos com campos como score/display/period_score
+	// Tentativa 1: array de objetos com campos como team1/team2/score/display/period_score
 	var entries []map[string]interface{}
 	if err := json.Unmarshal(raw, &entries); err == nil && len(entries) > 0 {
-		out := make([]int, 0, len(entries))
+		// Procurar o entry com type=0 (placar atual / full time)
 		for _, e := range entries {
-			for _, key := range []string{"display", "period_score", "score"} {
-				if v, ok := e[key]; ok {
-					if n, ok := toInt(v); ok {
-						out = append(out, n)
-						break
+			typeVal, _ := e["type"]
+			isCurrent := false
+			if t, ok := toInt(typeVal); ok && t == 0 {
+				isCurrent = true
+			}
+			if !isCurrent && len(entries) == 1 {
+				isCurrent = true
+			}
+			if !isCurrent {
+				continue
+			}
+			if v1, ok := e["team1"]; ok {
+				if n, ok := toInt(v1); ok {
+					out := []int{n}
+					if v2, ok := e["team2"]; ok {
+						if n2, ok := toInt(v2); ok {
+							out = append(out, n2)
+							return out
+						}
 					}
 				}
 			}
 		}
-		return out
+		// Fallback: tentar extrair de qualquer campo
+		for _, e := range entries {
+			for _, key := range []string{"display", "period_score", "score"} {
+				if v, ok := e[key]; ok {
+					if n, ok := toInt(v); ok {
+						return []int{n}
+					}
+				}
+			}
+		}
 	}
 	// Tentativa 2: array de strings
 	var strs []string

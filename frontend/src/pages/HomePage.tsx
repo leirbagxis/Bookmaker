@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { useWebSocket } from '../context/WebSocketContext';
 import { useMatches } from '../context/MatchesContext';
 import { SearchBar } from '../components/SearchBar';
 import { CompetitionSection } from '../components/CompetitionSection';
@@ -48,25 +47,23 @@ export function HomePage() {
 
   const totalMatches = filteredGroups?.reduce((acc, g) => acc + g.matches.length, 0) ?? 0;
 
-  const requestRefresh = () => {
-    refresh();
-  };
-
   return (
-    <div className="home">
-      <div className="home__toolbar">
+    <div className="flex flex-col gap-4 animate-fade-in">
+      <div className="flex items-center gap-3">
         <SearchBar value={search} onChange={setSearch} />
         <LastUpdated timestamp={lastUpdated} />
       </div>
 
-      <div className="home__tabs" role="tablist">
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" role="tablist">
         {TABS.map((t) => (
           <button
             key={t}
             type="button"
             role="tab"
             aria-selected={tab === t}
-            className={`home__tab${tab === t ? ' home__tab--active' : ''}`}
+            className={`px-5 py-2 rounded-full font-black uppercase text-xs tracking-widest whitespace-nowrap transition-all shadow-sm ${
+              tab === t ? 'bg-accent text-white' : 'bg-panel text-muted hover:bg-border'
+            }`}
             onClick={() => setTab(t)}
           >
             {t}
@@ -74,24 +71,24 @@ export function HomePage() {
         ))}
       </div>
 
-      <div className="home__content">
-        {error && <ErrorState message={error} onRetry={requestRefresh} />}
+      <div className="flex flex-col gap-4">
+        {error && <ErrorState message={error} onRetry={refresh} />}
 
-        {!error && groups === null && <LoadingState label="Carregando partidas..." />}
+        {!error && isLoading && groups === null && <LoadingState label="Carregando partidas..." />}
 
         {!error && groups && filteredGroups && filteredGroups.length === 0 && (
           <EmptyState
-            title={search ? 'Nenhum resultado para sua busca' : 'Nenhum jogo disponível nesta aba.'}
+            title={search ? 'Nenhum resultado' : 'Nenhum jogo disponível'}
             description={search ? 'Tente outro time ou campeonato.' : 'Volte mais tarde ou troque de aba.'}
           />
         )}
 
         {!error && filteredGroups && filteredGroups.length > 0 && (
           <>
-            <p className="home__count" aria-live="polite">
+            <p className="text-xs text-muted font-bold uppercase tracking-[0.15em]" aria-live="polite">
               {totalMatches} {totalMatches === 1 ? 'jogo' : 'jogos'}
             </p>
-            <div className="home__list">
+            <div className="flex flex-col gap-6">
               {filteredGroups.map((g) => (
                 <CompetitionSection key={g.name} group={g} />
               ))}

@@ -160,7 +160,7 @@ func (db *DB) getTicketSelections(ticketID int64) ([]models.TicketSelection, err
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	q := `SELECT id, ticket_id, event_id, home_team, away_team, start_time, market_id, market_name, selection_id, selection_name, odds, status FROM ticket_selections WHERE ticket_id = $1`
+	q := `SELECT id, ticket_id, event_id, home_team, away_team, start_time, market_id, market_name, selection_id, selection_name, odds, status, home_score, away_score FROM ticket_selections WHERE ticket_id = $1`
 	rows, err := db.postgres.pool.Query(ctx, q, ticketID)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (db *DB) getTicketSelections(ticketID int64) ([]models.TicketSelection, err
 		var s models.TicketSelection
 		var startTime time.Time
 		var odds float64
-		if err := rows.Scan(&s.ID, &s.TicketID, &s.EventID, &s.HomeTeam, &s.AwayTeam, &startTime, &s.MarketID, &s.MarketName, &s.SelectionID, &s.SelectionName, &odds, &s.Status); err != nil {
+		if err := rows.Scan(&s.ID, &s.TicketID, &s.EventID, &s.HomeTeam, &s.AwayTeam, &startTime, &s.MarketID, &s.MarketName, &s.SelectionID, &s.SelectionName, &odds, &s.Status, &s.HomeScore, &s.AwayScore); err != nil {
 			return nil, err
 		}
 		s.StartTime = startTime.Format(time.RFC3339)
@@ -367,9 +367,9 @@ func (db *DB) UpdateSelectionStatusBatch(ctx context.Context, selections []model
 	}
 	defer tx.Rollback(ctx)
 
-	q := `UPDATE ticket_selections SET status = $1 WHERE id = $2`
+	q := `UPDATE ticket_selections SET status = $1, home_score = $2, away_score = $3 WHERE id = $4`
 	for _, s := range selections {
-		if _, err := tx.Exec(ctx, q, string(s.Status), s.ID); err != nil {
+		if _, err := tx.Exec(ctx, q, string(s.Status), s.HomeScore, s.AwayScore, s.ID); err != nil {
 			return err
 		}
 	}
@@ -402,9 +402,9 @@ func (db *DB) UpdateTicketStatusBatch(ctx context.Context, tickets []models.Tick
 }
 
 func (db *DB) GetSelectionByID(ctx context.Context, selID int64) (*models.TicketSelection, error) {
-	q := `SELECT id, ticket_id, event_id, home_team, away_team, start_time, market_id, market_name, selection_id, selection_name, odds, status FROM ticket_selections WHERE id = $1`
+	q := `SELECT id, ticket_id, event_id, home_team, away_team, start_time, market_id, market_name, selection_id, selection_name, odds, status, home_score, away_score FROM ticket_selections WHERE id = $1`
 	var s models.TicketSelection
-	err := db.postgres.pool.QueryRow(ctx, q, selID).Scan(&s.ID, &s.TicketID, &s.EventID, &s.HomeTeam, &s.AwayTeam, &s.StartTime, &s.MarketID, &s.MarketName, &s.SelectionID, &s.SelectionName, &s.Odds, &s.Status)
+	err := db.postgres.pool.QueryRow(ctx, q, selID).Scan(&s.ID, &s.TicketID, &s.EventID, &s.HomeTeam, &s.AwayTeam, &s.StartTime, &s.MarketID, &s.MarketName, &s.SelectionID, &s.SelectionName, &s.Odds, &s.Status, &s.HomeScore, &s.AwayScore)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -415,7 +415,7 @@ func (db *DB) GetSelectionByID(ctx context.Context, selID int64) (*models.Ticket
 }
 
 func (db *DB) GetSelectionsByEventID(ctx context.Context, eventID int64) ([]models.TicketSelection, error) {
-	q := `SELECT id, ticket_id, event_id, home_team, away_team, start_time, market_id, market_name, selection_id, selection_name, odds, status FROM ticket_selections WHERE event_id = $1`
+	q := `SELECT id, ticket_id, event_id, home_team, away_team, start_time, market_id, market_name, selection_id, selection_name, odds, status, home_score, away_score FROM ticket_selections WHERE event_id = $1`
 	rows, err := db.postgres.pool.Query(ctx, q, eventID)
 	if err != nil {
 		return nil, err
@@ -425,7 +425,7 @@ func (db *DB) GetSelectionsByEventID(ctx context.Context, eventID int64) ([]mode
 	var sels []models.TicketSelection
 	for rows.Next() {
 		var s models.TicketSelection
-		if err := rows.Scan(&s.ID, &s.TicketID, &s.EventID, &s.HomeTeam, &s.AwayTeam, &s.StartTime, &s.MarketID, &s.MarketName, &s.SelectionID, &s.SelectionName, &s.Odds, &s.Status); err != nil {
+		if err := rows.Scan(&s.ID, &s.TicketID, &s.EventID, &s.HomeTeam, &s.AwayTeam, &s.StartTime, &s.MarketID, &s.MarketName, &s.SelectionID, &s.SelectionName, &s.Odds, &s.Status, &s.HomeScore, &s.AwayScore); err != nil {
 			return nil, err
 		}
 		sels = append(sels, s)

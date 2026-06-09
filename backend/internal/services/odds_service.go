@@ -32,11 +32,9 @@ func NewOddsService(cfg *config.Config, c *httpclient.Client, cc *cache.Cache[in
 	return &OddsService{cfg: cfg, client: c, cache: cc, hub: hub, oddsRedis: oddsRedis}
 }
 
-// GetEventOdds retorna odds do cache, ou busca da API externa se cache expirou.
+// GetEventOdds sempre busca da API externa para garantir odds frescas.
+// Se a API removeu uma seleção, o frontend precisa saber imediatamente.
 func (s *OddsService) GetEventOdds(ctx context.Context, eventID int64) ([]models.OddsMarket, error) {
-	if cached, ok := s.cache.Get(eventID); ok {
-		return cached, nil
-	}
 	return s.RefreshEvent(ctx, eventID)
 }
 

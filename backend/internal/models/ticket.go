@@ -37,4 +37,6 @@ type TicketSelection struct {
 	SelectionName string       `json:"name"`
 	Odds          float64      `json:"price"`
 	Status        TicketStatus `json:"status"`
+	HomeScore     *int         `json:"homeScore,omitempty"`
+	AwayScore     *int         `json:"awayScore,omitempty"`
 }

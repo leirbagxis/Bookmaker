@@ -13,8 +13,6 @@ import { EventPage } from './pages/EventPage';
 import { MyBetsPage } from './pages/MyBetsPage';
 import { EmptyState } from './components/EmptyState';
 
-import './styles/mybets.css';
-
 function PlaceholderPage({ title }: { title: string }) {
   return (
     <div className="page-placeholder">
@@ -35,9 +33,9 @@ function App() {
         <MatchesProvider>
           <BetSlipProvider>
             <BrowserRouter>
-              <div className="app">
+              <div className="flex flex-col min-h-screen bg-surface pb-24">
                 <Header />
-                <main className="app__main">
+                <main className="flex-1 w-full max-w-7xl mx-auto p-4 lg:p-lg">
                   <Routes>
                     <Route path="/" element={<HomePage />} />
                     <Route path="/event/:eventId" element={<EventPage />} />
@@ -51,11 +49,11 @@ function App() {
                 <BetSlip show={showBetSlip} onClose={() => setShowBetSlip(false)} />
                 <FloatingBetSlipTrigger onClick={() => setShowBetSlip(true)} />
                 
-                <footer className="app__footer">
+                <footer className="text-center text-xs text-muted p-md pb-8">
                   Projeto demonstrativo. Apostas simuladas. Não envolve dinheiro real.
                 </footer>
                 
-                <BottomNavigation onOpenBetSlip={() => setShowBetSlip(true)} />
+                <BottomNavigation />
               </div>
             </BrowserRouter>
           </BetSlipProvider>

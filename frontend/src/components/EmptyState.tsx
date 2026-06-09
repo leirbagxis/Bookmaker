@@ -5,9 +5,9 @@ type Props = {
 
 export function EmptyState({ title, description }: Props) {
   return (
-    <div className="state state--empty" role="status">
-      <p className="state__title">{title}</p>
-      {description && <p className="state__desc">{description}</p>}
+    <div className="flex flex-col items-center justify-center p-8 text-center bg-panel rounded-[2rem] shadow-sm animate-fade-in" role="status">
+      <p className="font-black uppercase tracking-tight text-lg mb-2">{title}</p>
+      {description && <p className="text-sm text-muted font-medium">{description}</p>}
     </div>
   );
 }

@@ -31,6 +31,10 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount floa
 
 		// Validação de Odds Alteradas (Odds Change Lock)
 		liveMarkets, err := s.odds.GetEventOdds(ctx, sel.EventID)
+		if err != nil {
+			log.Printf("DEBUG: Error getting live odds for event %d: %v", sel.EventID, err)
+		}
+
 		if err == nil && len(liveMarkets) > 0 {
 			found := false
 			for _, m := range liveMarkets {
@@ -52,8 +56,11 @@ func (s *BettingService) PlaceBet(ctx context.Context, userID int64, amount floa
 				}
 			}
 			if !found {
+				log.Printf("DEBUG: Selection NOT FOUND. Wanted MarketID: %s, SelectionID: %s. Available markets: %d", sel.MarketID, sel.SelectionID, len(liveMarkets))
 				return "", fmt.Errorf("a seleção '%s' não está mais disponível", sel.SelectionName)
 			}
+		} else if err == nil && len(liveMarkets) == 0 {
+			log.Printf("DEBUG: No live markets found in cache for event %d", sel.EventID)
 		}
 
 		totalOdds *= sel.Odds

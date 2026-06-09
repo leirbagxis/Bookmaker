@@ -90,6 +90,7 @@ func (s *SettlementService) RunSettlement(ctx context.Context) {
 	}
 
 	eventResults := make(map[int64]map[string]string) // eventID -> selectionUUID -> status
+	eventScores := make(map[int64][2]int)              // eventID -> [homeScore, awayScore]
 
 	for eventID := range eventMap {
 		url := fmt.Sprintf("%s/v2/pt-BR/events/%d?oddsResults=true", s.cfg.SuperbetBase, eventID)
@@ -103,15 +104,30 @@ func (s *SettlementService) RunSettlement(ctx context.Context) {
 		var root struct {
 			Data []struct {
 				OddsResults []OddsResult `json:"oddsResults"`
+				Scores      []struct {
+					Team1 int `json:"team1"`
+					Team2 int `json:"team2"`
+					Type  int `json:"type"`
+				} `json:"scores"`
 			} `json:"data"`
 		}
 
-		if err := json.Unmarshal(raw, &root); err == nil && len(root.Data) > 0 && len(root.Data[0].OddsResults) > 0 {
-			resMap := make(map[string]string)
-			for _, r := range root.Data[0].OddsResults {
-				resMap[r.UUID] = r.Status
+		if err := json.Unmarshal(raw, &root); err == nil && len(root.Data) > 0 {
+			d := root.Data[0]
+			if len(d.OddsResults) > 0 {
+				resMap := make(map[string]string)
+				for _, r := range d.OddsResults {
+					resMap[r.UUID] = r.Status
+				}
+				eventResults[eventID] = resMap
 			}
-			eventResults[eventID] = resMap
+			// Extrair placar atual (type=0)
+			for _, s := range d.Scores {
+				if s.Type == 0 {
+					eventScores[eventID] = [2]int{s.Team1, s.Team2}
+					break
+				}
+			}
 		}
 	}
 
@@ -156,6 +172,11 @@ func (s *SettlementService) RunSettlement(ctx context.Context) {
 
 					// Adiciona à lista de batch update
 					t.Selections[i].Status = newStatus
+					// Salvar placar se disponível
+					if score, ok := eventScores[sel.EventID]; ok {
+						t.Selections[i].HomeScore = &score[0]
+						t.Selections[i].AwayScore = &score[1]
+					}
 					selectionsToUpdate = append(selectionsToUpdate, t.Selections[i])
 				} else {
 					allSettled = false // Resultado ainda não saiu para essa odd específica

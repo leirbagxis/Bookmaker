@@ -33,49 +33,55 @@ function getMarketCategories(marketName: string): string[] {
   const cats: string[] = [];
 
   // 1. REJEIÇÃO DE COMBINADAS (Bet Builder / Combinadas Prontas)
-  // A Superbet usa ";" para separar os eventos de uma combinada pronta.
   if (marketName.includes(';') || marketName.includes(' + ')) return [];
 
-  // 2. LÓGICA DE CARTÕES
-  if (n.includes('cartao') || n.includes('cartoe') || n.includes('card') || n.includes('punicao') || n.includes('advertencia')) {
-    cats.push('cards');
-    // Apenas o "Total de Cartões" da partida vai para a aba principal
-    if (n.includes('total') && !n.includes('1 tempo') && !n.includes('1t') && !n.includes('equipe')) {
-      cats.push('main');
-    }
+  // 2. PRIORIDADE: Escanteios (Corners)
+  if (n.includes('escanteio') || n.includes('canto') || n.includes('corner')) {
+    cats.push('corners');
+    return cats;
   }
 
-  // 3. RESTANTE DAS CATEGORIAS
-  
-  // Principais (Outros)
-  const isOtherMain = 
+  // 3. PRIORIDADE: Cartões (Cards)
+  if (n.includes('cartao') || n.includes('cartoe') || n.includes('card') || n.includes('punicao') || n.includes('advertencia') || n.includes('amarelo') || n.includes('vermelho')) {
+    cats.push('cards');
+    if (n.includes('total') && !n.includes('equipe') && !n.includes('1 tempo')) {
+      cats.push('main');
+    }
+    return cats;
+  }
+
+  // 4. Gols (Goals)
+  const isGoals =
+    n.includes('total de gols') || n.includes('mais/menos gols') || n.includes('over/under goals') ||
+    n.includes('gols totais') || n.includes('gol') || n.includes('marcar gol') ||
+    n.includes('gols') || n.includes('ambas') || n.includes('resultado final & total') ||
+    n.includes('dupla chance & total') || n.includes('total & ambas') ||
+    n.includes('Resultado Final ou Total de Gols') ||
+    n.includes('faixa de gols') || n.includes('handicap asiatico') || n.includes('total de gols asiatico') ||
+    n.includes('impar') || n.includes('par') ||
+    n.includes('vencer') || n.includes('intervalo/resultado') ||
+    n.includes('resultado do intervalo') || n.includes('resultado em qualquer') ||
+    n.includes('resultado correto') || n.includes('maior numero de gols');
+
+  if (isGoals) cats.push('goals');
+
+  // 5. Estatísticas
+  if (n.includes('chute') || n.includes('finalizacao') || n.includes('finalização') || n.includes('falta') || n.includes('remate')) {
+    cats.push('stats');
+  }
+
+  // 6. Principais (Outros)
+  const isOtherMain =
     n === 'resultado final' || n === '1x2' || n === 'vencedor do encontro' || n === 'resultado' ||
     n.includes('dupla chance') || n.includes('double chance') ||
     n.includes('ambas marcam') || n.includes('ambas as equipes marcam') ||
     n.includes('empate anula') || n.includes('draw no bet') ||
     n.includes('ambas as equipes marcam ou mais de 2.5');
-  
+
   if (isOtherMain) cats.push('main');
 
-  // Gols
-  if (
-    n.includes('total de gols') || n.includes('mais/menos gols') || n.includes('over/under goals') ||
-    n.includes('1 gol') || n.includes('primeiro gol') || n.includes('1st goal')
-  ) {
-    cats.push('goals');
-  }
-
-  // Escanteios
-  if (n.includes('escanteio') || n.includes('canto') || n.includes('corner')) {
-    if (n.includes('total') || n.includes('mais/menos') || n.includes('over/under') || n.includes('faixa')) {
-      cats.push('corners');
-    }
-  }
-
-  // Estatísticas
-  if (n.includes('chute') || n.includes('finalizacao') || n.includes('finalização') || n.includes('falta') || n.includes('remate')) {
-    cats.push('stats');
-  }
+  // 7. Fallback: se não encaixou em nenhuma, coloca em 'goals' por padrão
+  if (cats.length === 0) cats.push('goals');
 
   return cats;
 }
@@ -163,89 +169,97 @@ export function EventPage() {
     isLive && typeof match?.homeScore === 'number' && typeof match?.awayScore === 'number';
 
   return (
-    <div className="event">
-      <Link to="/" className="event__back">← Voltar</Link>
+    <div className="flex flex-col gap-6 animate-fade-in">
+      <Link to="/" className="text-muted font-bold text-xs uppercase tracking-widest hover:text-accent flex items-center gap-1 w-fit">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Voltar
+      </Link>
 
       {match ? (
-        <header className="event__head">
-          <div className="event__head-top">
-            <span className="event__competition">{match.competition || 'Campeonato'}</span>
+        <header className="flex flex-col gap-2">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[10px] font-bold text-muted bg-surface px-2 py-1 rounded-sm uppercase tracking-widest">{match.competition || 'Campeonato'}</span>
             {isLive && <LiveBadge liveMinute={match.liveMinute} clock={match.clock} size="md" />}
             {lastUpdated && <LastUpdated timestamp={lastUpdated} label="Odds" />}
           </div>
-          <h1 className="event__title">
-            {match.homeTeam}{' '}
-            {showScore && <strong className="event__score">{match.homeScore}</strong>}
-            <span className="event__sep">x</span>
-            {match.awayTeam}{' '}
-            {showScore && <strong className="event__score">{match.awayScore}</strong>}
+          <h1 className="font-black uppercase tracking-tight text-xl leading-tight flex items-center gap-2 flex-wrap">
+            <span>{match.homeTeam}</span>
+            {showScore && <strong className="text-primary bg-accent px-2 py-0.5 rounded-md">{match.homeScore}</strong>}
+            <span className="text-muted mx-1">x</span>
+            <span>{match.awayTeam}</span>
+            {showScore && <strong className="text-primary bg-accent px-2 py-0.5 rounded-md">{match.awayScore}</strong>}
           </h1>
-          <div className="event__meta">
+          <div className="flex items-center gap-2 text-xs font-bold text-muted mt-1">
             <span>{formatTime(match.startTime)}</span>
-            {match.status && !isLive && <span className="event__status">{match.status}</span>}
+            {match.status && !isLive && <span className="bg-primary text-black px-2 py-0.5 rounded-sm uppercase tracking-widest text-[9px]">{match.status}</span>}
           </div>
         </header>
       ) : (
         <LoadingState label="Carregando jogo..." />
       )}
 
-      <div className="event__tabs-container">
-        <div className="event__tabs">
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide" role="tablist">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
-              className={`event__tab ${activeCategory === cat.id ? 'event__tab--active' : ''}`}
+              type="button"
+              role="tab"
+              aria-selected={activeCategory === cat.id}
+              className={`px-5 py-2 rounded-full font-black uppercase text-xs tracking-widest whitespace-nowrap transition-all shadow-sm ${
+                activeCategory === cat.id ? 'bg-accent text-white' : 'bg-panel text-muted hover:bg-border'
+              }`}
               onClick={() => setActiveCategory(cat.id)}
             >
               {cat.label}
             </button>
           ))}
         </div>
-      </div>
 
-      <div className="event__content">
-        {error && <ErrorState message={error} onRetry={refresh} />}
-        {!error && markets === null && <LoadingState label="Carregando odds..." />}
-        {!error && markets && markets.length === 0 && (
-          <EmptyState
-            title="Este jogo não possui odds disponíveis."
-            description="Tente outro jogo."
-          />
-        )}
-        {!error && markets && markets.length > 0 && (
-          <div className="event__markets">
-            {activeCategory === 'all' ? (
-              filteredMarkets.length > 0 ? (
-                <OddsMarketsGrouped 
-                  markets={filteredMarkets} 
-                  homeTeam={match?.homeTeam} 
-                  awayTeam={match?.awayTeam} 
-                  startTime={match?.startTime}
-                />
+        <div className="flex flex-col gap-4" key={activeCategory}>
+          {error && <ErrorState message={error} onRetry={refresh} />}
+          {!error && markets === null && <LoadingState label="Carregando odds..." />}
+          {!error && markets && markets.length === 0 && (
+            <EmptyState
+              title="Este jogo não possui odds disponíveis."
+              description="Tente outro jogo."
+            />
+          )}
+          {!error && markets && markets.length > 0 && (
+            <div className="flex flex-col animate-fade-in">
+              {activeCategory === 'all' ? (
+                filteredMarkets.length > 0 ? (
+                  <OddsMarketsGrouped 
+                    markets={filteredMarkets} 
+                    homeTeam={match?.homeTeam} 
+                    awayTeam={match?.awayTeam} 
+                    startTime={match?.startTime}
+                  />
+                ) : (
+                  <EmptyState
+                    title="Nenhum mercado disponível"
+                    description="Tente selecionar outra aba."
+                  />
+                )
+              ) : filteredMarkets.length > 0 ? (
+                filteredMarkets.map((m) => (
+                  <OddsMarketView 
+                    key={`${m.id}-${m.name}`} 
+                    market={m} 
+                    homeTeam={match?.homeTeam} 
+                    awayTeam={match?.awayTeam} 
+                    startTime={match?.startTime}
+                  />
+                ))
               ) : (
                 <EmptyState
-                  title="Nenhum mercado disponível"
+                  title="Nenhum mercado nesta categoria"
                   description="Tente selecionar outra aba."
                 />
-              )
-            ) : filteredMarkets.length > 0 ? (
-              filteredMarkets.map((m) => (
-                <OddsMarketView 
-                  key={m.id} 
-                  market={m} 
-                  homeTeam={match?.homeTeam} 
-                  awayTeam={match?.awayTeam} 
-                  startTime={match?.startTime}
-                />
-              ))
-            ) : (
-              <EmptyState
-                title="Nenhum mercado nesta categoria"
-                description="Tente selecionar outra aba."
-              />
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

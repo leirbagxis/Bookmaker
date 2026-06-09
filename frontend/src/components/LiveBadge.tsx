@@ -25,10 +25,14 @@ export function LiveBadge({ liveMinute, clock, size = 'sm' }: Props) {
   } else if (typeof liveMinute === 'number' && liveMinute > 0) {
     label = formatTime(liveMinute);
   }
+  
+  const textClass = size === 'sm' ? 'text-[9px]' : 'text-xs';
+  const paddingClass = size === 'sm' ? 'px-2 py-0.5' : 'px-3 py-1';
+  
   return (
-    <span className={`live-badge live-badge--${size}`} aria-label="Jogo ao vivo">
-      <span className="live-badge__dot" aria-hidden="true" />
-      <span className="live-badge__label">{label}</span>
+    <span className={`inline-flex items-center gap-1.5 bg-primary text-black font-black tracking-widest uppercase rounded-sm ${paddingClass} ${textClass}`} aria-label="Jogo ao vivo">
+      <span className="w-1.5 h-1.5 bg-black rounded-full animate-pulse" aria-hidden="true" />
+      <span>{label}</span>
     </span>
   );
 }
